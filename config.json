@@ -1,0 +1,44 @@
+{
+	"FILES": ["MYSC70", "MYSC71"],
+	"Directory": "~/Box/Yun lab projects/victoria_liu/matching_patients",
+	"NourpalDirectory": "~/Box/Yun lab projects/victoria_liu/Nourpal",
+	"ObjName": "Combined",
+	"Subset": "All",
+	"nFeature_RNA": 200,
+	"mito_ratio": 0.15,
+	"nFeature_ADT": 40,
+	"SCT": false,
+	"batch_norm_by":"Sample",
+	"RESOLUTION": 0.3,
+	"clustering": "WNN",
+	"sample_info": {
+		"70": "GBM6_tumor",
+		"71": "GBM6_blood",
+		"95": "GBM30_blood",
+		"96": "GBM30_tumor",
+		"97": "GBM31_blood",
+		"98": "GBM31_tumor"
+	},
+  "group_info": {
+		"70": "tumor",
+		"71": "blood",
+		"95": "blood",
+		"96": "tumor",
+		"97": "blood",
+		"98": "tumor"
+	},
+	"patient_info": {
+		"70": "GBM6",
+		"71": "GBM6",
+		"95": "GBM30",
+		"96": "GBM30",
+		"97": "GBM31",
+		"98": "GBM31"
+	},
+	"run_Harmony_CC_controls": false,
+	"FONT_FAMILY": "ArialMT",
+	"PERSON_TO": "Victoria Liu",
+	"EMAIL_TO": "victoria.liu@jax.org",
+	"CATCH_ERRORS": true,
+	"SEND_WARNINGS": false
+}
