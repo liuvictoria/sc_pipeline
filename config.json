@@ -7,10 +7,19 @@
 	"nFeature_RNA": 200,
 	"mito_ratio": 0.15,
 	"nFeature_ADT": 40,
-	"SCT": false,
-	"batch_norm_by":"Sample",
+	"DOUBLET_FORMATION_RATE": 0.075,
+	"ADT_PRESENT": {
+		"70": true,
+		"71": true,
+		"95": false,
+		"96": false,
+		"97": false,
+		"98": false
+	},
+	"USE_ADT": true,
+	"SCT": true,
+	"batch_norm_by": "Sample",
 	"RESOLUTION": 0.3,
-	"clustering": "WNN",
 	"sample_info": {
 		"70": "GBM6_tumor",
 		"71": "GBM6_blood",
@@ -36,9 +45,5 @@
 		"98": "GBM31"
 	},
 	"run_Harmony_CC_controls": false,
-	"FONT_FAMILY": "ArialMT",
-	"PERSON_TO": "Victoria Liu",
-	"EMAIL_TO": "victoria.liu@jax.org",
-	"CATCH_ERRORS": true,
-	"SEND_WARNINGS": false
+	"FONT_FAMILY": "ArialMT"
 }
