@@ -1,26 +1,31 @@
 {
-	"FILES": ["MYSC70", "MYSC71"],
+	"FILES": ["ESC8", "ESC9", "MYSC71", "MYSC95", "MYSC97"],
+	"count_matrices_dir" : "sample_feature_bc_matrix",
 	"Directory": "~/Box/Yun lab projects/victoria_liu/matching_patients",
 	"NourpalDirectory": "~/Box/Yun lab projects/victoria_liu/Nourpal",
 	"ObjName": "Combined",
-	"Subset": "All",
+	"Subset": "AllPBMC",
 	"nFeature_RNA": 200,
 	"mito_ratio": 0.15,
 	"nFeature_ADT": 40,
 	"DOUBLET_FORMATION_RATE": 0.075,
 	"ADT_PRESENT": {
+		"8" : false,
+		"9" : false,
 		"70": true,
 		"71": true,
-		"95": false,
-		"96": false,
-		"97": false,
-		"98": false
+		"95": true,
+		"96": true,
+		"97": true,
+		"98": true
 	},
-	"USE_ADT": true,
+	"USE_ADT": false,
 	"SCT": true,
 	"batch_norm_by": "Sample",
 	"RESOLUTION": 0.3,
 	"sample_info": {
+		"8" : "CONTROL1_blood",
+		"9" : "CONTROL2_blood",
 		"70": "GBM6_tumor",
 		"71": "GBM6_blood",
 		"95": "GBM30_blood",
@@ -29,6 +34,8 @@
 		"98": "GBM31_tumor"
 	},
   "group_info": {
+		"8" : "blood",
+		"9" : "blood",
 		"70": "tumor",
 		"71": "blood",
 		"95": "blood",
@@ -37,6 +44,8 @@
 		"98": "tumor"
 	},
 	"patient_info": {
+		"8" : "CONTROL1",
+		"9" : "CONTROL2",
 		"70": "GBM6",
 		"71": "GBM6",
 		"95": "GBM30",

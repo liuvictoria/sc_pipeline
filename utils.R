@@ -20,6 +20,7 @@ library(easypackages)
 # BiocManager::install("glmGamPoi")
 
 # remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')
+# remotes::install_github("mojaveazure/seurat-disk")
 # devtools::install_github("sjessa/ggmin")
 # install.packages("magick")
 # install.packages("gmailr", repos="http://cran.r-project.org")
@@ -31,7 +32,7 @@ MyPackages <- c(
   "Seurat", "cowplot", "patchwork", "stringr", "ComplexHeatmap", 
   "SingleCellExperiment", "ggmin", "Nourpal", "Cairo",
   "DoubletFinder", "harmony", "magick", "viridis", "limma", 
-  "glmGamPoi", "gmailr", "rjson", "here"
+  "glmGamPoi", "gmailr", "rjson", "here", "SeuratDisk"
 )
 
 # similar to libaries, but will install package as well
@@ -54,7 +55,9 @@ Directory <- config$Directory
 if (! dir.exists(Directory)) dir.create(Directory)
 setwd(Directory)
 
-RobjDirectory <- paste0(Directory, "/R_Objects/")
+RobjDir <- paste0(Directory, "/R_Objects/")
+if (! dir.exists(RobjDir)) dir.create(RobjDirectory)
+RobjDirectory <- paste0(RobjDir, "/", Subset, "/")
 if (! dir.exists(RobjDirectory)) dir.create(RobjDirectory)
 RcodeDirectory <- paste0(Directory, "/R_Code/")
 if (! dir.exists(RcodeDirectory)) dir.create(RcodeDirectory)
@@ -64,7 +67,7 @@ outdir <- paste0(Directory, "/Output/")
 if (! dir.exists(outdir)) dir.create(outdir)
 
 
-OutputDirectory <- paste0(Directory, "/Output/AllClusters/")
+OutputDirectory <- paste0(Directory, "/Output/", Subset, "/")
 if (! dir.exists(OutputDirectory)) dir.create(OutputDirectory)
 ConfigDirectory <- paste0(OutputDirectory, "/Configs/")
 if (! dir.exists(ConfigDirectory)) dir.create(ConfigDirectory)
@@ -92,6 +95,13 @@ if (! dir.exists(errorDir)) dir.create(errorDir)
 DOUBLET_FORMATION_RATE <- config$DOUBLET_FORMATION_RATE
 ADT_PRESENT <- config$ADT_PRESENT
 USE_ADT <- config$USE_ADT
+if (USE_ADT) {
+  for (presence in ADT_PRESENT) {
+    if (! presence) {
+      stop("Trying to use ADT, but ADT is not present for all samples")
+    }
+  }
+}
 # resolution for cluster-finding after PCA
 RESOLUTION <- config$RESOLUTION
 # if we are doing scTransform

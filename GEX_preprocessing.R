@@ -10,8 +10,8 @@ for(i in 1:length(FILES)){
     data.dir = paste0(
       Directory,
       "/Data/",
-      FILES[i], 
-      "/filtered_feature_bc_matrix/"
+      FILES[i], "/",
+      config$count_matrices_dir, "/"
     )
   )
   
@@ -60,9 +60,11 @@ for(i in 1:length(FILES)){
   
   #prep work for DoubletFinder
   if (SCT) {
+    SeuratObjMYSC <- RenameAssays(SeuratObjMYSC, RNA = "RNApreSCT")
     SeuratObjMYSC <- SeuratObjMYSC %>%
       SCTransform(
-        assay = "RNA", method = "glmGamPoi", 
+        assay = "RNApreSCT", method = "glmGamPoi", 
+        new.assay.name = "RNA",
         vst.flavor = "v2", verbose = FALSE
       )
   } else {
@@ -72,16 +74,15 @@ for(i in 1:length(FILES)){
       ScaleData(assay = "RNA")
   }
   
-  
   #Run PCA
   SeuratObjMYSC <- RunPCA(
-    SeuratObjMYSC, 
+    SeuratObjMYSC,
     features = VariableFeatures(object = SeuratObjMYSC)
   )
   # most representative (by absolute value) genes for PCs
   VS = VizDimLoadings(SeuratObjMYSC, dims = 1:2, reduction = "pca")
   VSD = DimPlot(SeuratObjMYSC, reduction = "pca") + theme_min()
-  
+
   # save plot
   pdf(paste0(
     QCDirectory, FILES[i], " GEX PCA features and plot.pdf"
@@ -95,7 +96,7 @@ for(i in 1:length(FILES)){
     nrow = 1, widths = c(0.6, 0.6, 1)
   )
   dev.off()
-  
+
   # remove doublets
   # documentation: https://github.com/chris-mcginnis-ucsf/DoubletFinder
   # pK Identification (no ground-truth)
@@ -103,17 +104,17 @@ for(i in 1:length(FILES)){
   sweep.res.list <- paramSweep_v3(SeuratObjMYSC, PCs = 1:10, sct = SCT)
   sweep.stats <- summarizeSweep(sweep.res.list, GT = FALSE)
   bcmvn <- find.pK(sweep.stats)
-  
+
   # to plot max bcmvn for identifying pK (refer to graph on wiki page)
   df = as.data.frame(bcmvn)
   pK_graph = df %>%
     ggplot(aes( x = ParamID, y = BCmetric)) +
-    geom_point(color = "royalblue") + 
+    geom_point(color = "royalblue") +
     geom_line(color = "royalblue") +
-    theme_classic() + 
+    theme_classic() +
     # plot pK on x-axis
     geom_vline(xintercept = df$ParamID[df$BCmetric == max(df$BCmetric)])
-  
+
   pdf(paste0(
     QCDirectory, FILES[i],
     " doubletfinder BCmvn distribution.pdf"),
@@ -121,30 +122,30 @@ for(i in 1:length(FILES)){
   )
   print(pK_graph)
   dev.off()
-  
+
   # Homotypic Doublet Proportion Estimate
-  # I think $Clusters may be empty / just a placeholder? 
-  homotypic.prop <- modelHomotypic(SeuratObjMYSC@meta.data$Clusters)    
+  # I think $Clusters may be empty / just a placeholder?
+  homotypic.prop <- modelHomotypic(SeuratObjMYSC@meta.data$Clusters)
   # poisson distribution
   nExp_poi <- round(DOUBLET_FORMATION_RATE * nrow(SeuratObjMYSC@meta.data))
   nExp_poi.adj <- round(nExp_poi * (1 - homotypic.prop))
-  
+
   ## Run DoubletFinder with varying classification stringencies
   # use 10 principle components, doublet count as 0.25 (not too important)
   # pK and pANN (neighborhood size) calculated using parameter sweep
   SeuratObjMYSC <- doubletFinder_v3(
-    SeuratObjMYSC, PCs = 1:10, 
+    SeuratObjMYSC, PCs = 1:10,
     pN = 0.25, pK = as.numeric(df$pK[df$BCmetric == max(df$BCmetric)]),
     nExp = nExp_poi, reuse.pANN = FALSE, sct = SCT
   )
-  
+
   SeuratObjMYSC <- doubletFinder_v3(
-    SeuratObjMYSC, PCs = 1:10, 
+    SeuratObjMYSC, PCs = 1:10,
     pN = 0.25, pK = as.numeric(df$pK[df$BCmetric == max(df$BCmetric)]),
-    nExp = nExp_poi.adj, reuse.pANN = colnames(SeuratObjMYSC@meta.data)[5], 
+    nExp = nExp_poi.adj, reuse.pANN = colnames(SeuratObjMYSC@meta.data)[5],
     sct = SCT
   )
-  
+
   # rename columns
   colnames(SeuratObjMYSC@meta.data)[
     length(SeuratObjMYSC@meta.data) - 1
@@ -152,7 +153,7 @@ for(i in 1:length(FILES)){
   colnames(SeuratObjMYSC@meta.data)[
     length(SeuratObjMYSC@meta.data)
   ] <- "DoubletStatus"
-  
+
   # save plot
   pdf(paste0(
     QCDirectory, FILES[i],
@@ -160,14 +161,13 @@ for(i in 1:length(FILES)){
   ), width = 8, height = 5.5, family = FONT_FAMILY
   )
   DimPlot(
-    SeuratObjMYSC, split.by = "DoubletStatus", 
+    SeuratObjMYSC, split.by = "DoubletStatus",
     order = TRUE, shuffle = TRUE
   )
   dev.off()
-  
+
   # save object
   saveRDS(SeuratObjMYSC, file = paste0(RobjDirectory, FILES[i], ".rds"))
-  
   SeuratSamples[[i]] <- SeuratObjMYSC
 }
 
@@ -336,7 +336,6 @@ DefaultAssay(SeuratObj) <- "RNA"
 if (SCT) {
   # rename for ease of use; no matter if SCT or NormalizeData,
   # we would like to use "RNA" assay from now on
-  SeuratObj <- RenameAssays(SeuratObj, RNA = "RNApreSCT")
   SeuratObj <- SCTransform(
     SeuratObj,
     assay = "RNApreSCT",
@@ -364,72 +363,7 @@ pdf(paste0(
 plot2 + theme_min()
 dev.off()
 
-if (config$run_Harmony_CC_controls & FALSE) {
-  ############ FOR DEMO PURPOSES START #############
-  #Run PCA
-  
-  SeuratObj <- RunPCA(
-    SeuratObj, features = VariableFeatures(object = SeuratObj)
-  )
-  print(SeuratObj[["pca"]], dims = 1:5, nfeatures = 5)
-  
-  # plot important genes of first two PCs
-  # plot dim map of first two PCs, grouped by sample
-  # ideally, shouldn't see much difference in clustering amongst samples
-  # batch effects can be removed with Harmony
-  VS1 <- VizDimLoadings(SeuratObj, dims = 1:2, reduction = "pca")
-  VSD1 <- DimPlot(
-    SeuratObj, reduction = "pca", group.by = "Sample", 
-    cols = get_colors(seurat_object = SeuratObj, color_by = "Sample")
-  ) + theme_min()
-  
-  pdf(paste0(
-    OutputDirectory, ObjName, Subset, 
-    " demo PCA features and plot (no harmony or CC regression).pdf"
-  ), width = 12, height = 4.5, family = FONT_FAMILY
-  )
-  grid.arrange(
-    VS1[[1]] + theme_min(), 
-    VS1[[2]] + theme_min(), 
-    VSD1, 
-    nrow = 1, 
-    widths = c(0.6, 0.6, 1)
-  )
-  dev.off()
-  
-  # this takes a long time
-  #SeuratObj <- JackStraw(SeuratObj, num.replicate = 100)
-  #SeuratObj <- ScoreJackStraw(SeuratObj, dims = 1:20)
-  #JackStrawPlot(SeuratObj, dims = 1:15)
-  
-  # elbow plot is quick and dirty, to get number of dims
-  elbowplot <- ElbowPlot(SeuratObj, ndims = 50)
-  
-  # UMAP: based on GEX PCA only
-  dims <- 1:20
-  SeuratObj <- SeuratObj %>%
-    # get "euclidian" distance based on PC feature vectors
-    FindNeighbors(dims = dims) %>%
-    # find clusters based on resolution and neighbor graph
-    FindClusters(resolution = RESOLUTION) %>%
-    #initial clustering
-    RunUMAP(dims = dims)
-  # save reduction
-  SeuratObj@reductions$GEX_UMAP_noharmony_noCC <- SeuratObj@reductions$umap
-  
-  # harmony batch correction
-  SeuratObj <- SeuratObj %>% 
-    RunHarmony(
-      group.by.vars = config$batch_norm_by,
-      reduction.save = "harmonyRNA"
-    ) %>%
-    FindNeighbors(reduction = "harmonyRNA", dims = dims) %>%
-    FindClusters(resolution = RESOLUTION) %>%
-    RunUMAP(reduction = "harmonyRNA", dims = dims)
-  # save info
-  SeuratObj@reductions$GET_UMAP_harmony_noCC <- SeuratObj@reductions$umap
-  ############ FOR DEMO PURPOSES END #############
-}
+
 
 ########### CELL CYCLE REGRESSION (GEX) #############
 DefaultAssay(SeuratObj) <- "RNA"
@@ -580,13 +514,13 @@ saveRDS(
 # capture session info, versions, etc.
 writeLines(
   capture.output(sessionInfo()), 
-  paste0(ConfigDirectory, "sessionInfo_GEX.txt")
+  paste0(ConfigDirectory, ObjName, Subset, "sessionInfo_GEX.txt")
 )
 file.copy(
   from = here("config.json"), 
-  to = paste0(ConfigDirectory, "config_params_GEX.json")
+  to = paste0(ConfigDirectory, ObjName, Subset, "config_params_GEX.json")
 )
 file.copy(
   from = here("analysis.json"), 
-  to = paste0(ConfigDirectory, "analysis_params_GEX.json")
+  to = paste0(ConfigDirectory, ObjName, Subset, "analysis_params_GEX.json")
 )

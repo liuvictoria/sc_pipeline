@@ -251,3 +251,9 @@ file.copy(
   from = here("analysis.json"), 
   to = paste0(ConfigDirectory, "analysis_params_ADT.json")
 )
+##################### scanpy testing #################3
+SaveH5Seurat(SeuratObj, filename = "SeuratObjH5")
+Convert("SeuratObjH5.h5seurat", dest = "h5ad")
+
+Convert("SeuratObjH5.h5ad", dest = "h5seurat")
+temp <- LoadH5Seurat("SeuratObjH5.h5seurat")
