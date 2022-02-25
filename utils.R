@@ -16,6 +16,7 @@ library(easypackages)
 # BiocManager::install("ComplexHeatmap")
 # BiocManager::install("SingleCellExperiment")
 # BiocManager::install('limma')
+# BiocManager::install("clustifyr")
 # # gamma poisson generalized linear model
 # BiocManager::install("glmGamPoi")
 
@@ -32,7 +33,8 @@ MyPackages <- c(
   "Seurat", "cowplot", "patchwork", "stringr", "ComplexHeatmap", 
   "SingleCellExperiment", "ggmin", "Nourpal", "Cairo",
   "DoubletFinder", "harmony", "magick", "viridis", "limma", 
-  "glmGamPoi", "gmailr", "rjson", "here", "SeuratDisk"
+  "glmGamPoi", "gmailr", "rjson", "here", "SeuratDisk",
+  "gplots", "clustifyr", "fgsea"
 )
 
 # similar to libaries, but will install package as well
@@ -49,6 +51,28 @@ library(Nourpal)
 
 
 
+################ SET PARAMETERS ###############
+DOUBLET_FORMATION_RATE <- config$DOUBLET_FORMATION_RATE
+ADT_PRESENT <- config$ADT_PRESENT
+USE_ADT <- config$USE_ADT
+if (USE_ADT) {
+  for (presence in ADT_PRESENT) {
+    if (! presence) {
+      stop("Trying to use ADT, but ADT is not present for all samples")
+    }
+  }
+}
+# resolution for cluster-finding after PCA
+RESOLUTION <- config$RESOLUTION
+# if we are doing scTransform
+SCT <- config$SCT
+# font family for output plots
+FONT_FAMILY <- config$FONT_FAMILY
+# files to analyze
+FILES = config$FILES
+# saving files
+ObjName <- config$ObjName
+Subset <- config$Subset
 ################# CONFIG DIRECTORIES #################
 # Set working directory and create input / output folders
 Directory <- config$Directory
@@ -56,8 +80,8 @@ if (! dir.exists(Directory)) dir.create(Directory)
 setwd(Directory)
 
 RobjDir <- paste0(Directory, "/R_Objects/")
-if (! dir.exists(RobjDir)) dir.create(RobjDirectory)
-RobjDirectory <- paste0(RobjDir, "/", Subset, "/")
+if (! dir.exists(RobjDir)) dir.create(RobjDir)
+RobjDirectory <- paste0(RobjDir, Subset, "/")
 if (! dir.exists(RobjDirectory)) dir.create(RobjDirectory)
 RcodeDirectory <- paste0(Directory, "/R_Code/")
 if (! dir.exists(RcodeDirectory)) dir.create(RcodeDirectory)
@@ -87,32 +111,12 @@ if (! dir.exists(featuremapDirectory)) dir.create(featuremapDirectory)
 UMAPDirectory <- paste0(OutputDirectory, "/UMAPs/")
 if (! dir.exists(UMAPDirectory)) dir.create(UMAPDirectory)
 
-# NOTE: tempdir() directory is destroyed upon closing R session
-errorDir <- paste0(Directory, "/temp/")
-if (! dir.exists(errorDir)) dir.create(errorDir)
+dotDirectory <- paste0(OutputDirectory, "/DotPlots/")
+if (! dir.exists(dotDirectory)) dir.create(dotDirectory)
+LoupeDirectory <- paste0(OutputDirectory, "/LoupeProjections/")
+if (! dir.exists(LoupeDirectory)) dir.create(LoupeDirectory)
 
-################ SET PARAMETERS ###############
-DOUBLET_FORMATION_RATE <- config$DOUBLET_FORMATION_RATE
-ADT_PRESENT <- config$ADT_PRESENT
-USE_ADT <- config$USE_ADT
-if (USE_ADT) {
-  for (presence in ADT_PRESENT) {
-    if (! presence) {
-      stop("Trying to use ADT, but ADT is not present for all samples")
-    }
-  }
-}
-# resolution for cluster-finding after PCA
-RESOLUTION <- config$RESOLUTION
-# if we are doing scTransform
-SCT <- config$SCT
-# font family for output plots
-FONT_FAMILY <- config$FONT_FAMILY
-# files to analyze
-FILES = config$FILES
-# saving files
-ObjName <- config$ObjName
-Subset <- config$Subset
+
 
 ############################# HELPER FUNCTIONS ###############################
 
@@ -142,6 +146,25 @@ get_colors <- function(
   )
   names(colors) = sort(unique(as.vector(as.matrix(SeuratObj[[color_by]]))))
   return (colors)
+}
+
+############### GET CASE CORRECT FEATURES ##############
+case_sensitive_features <- function(
+  seurat_object, features
+) {
+  final_features <- c()
+  for (feature in features) {
+    idx_match <- match(
+      tolower(feature), 
+      tolower(rownames(SeuratObj)),
+      nomatch = -1
+    )
+    if (idx_match != -1) {
+      final_features <- c(
+        final_features, rownames(SeuratObj)[idx_match])
+    }
+  }
+  return (unlist(final_features))
 }
 
 ###### HEATMAP ANNOTATIONS ########
@@ -216,7 +239,7 @@ plot_bargraph <- function (
 ################ TEMPLATE DENSITY PLOT #################
 plot_densitygraph <- function (
   seurat_object, aesX, fill, color_by, 
-  xintercept,
+  xintercept = Inf,
   scale_x_log10 = FALSE,
   alpha = 0.2, color_reverse = FALSE
 ) {
@@ -230,9 +253,13 @@ plot_densitygraph <- function (
     ggplot(aes_string(x = aesX, fill = fill, color = color_by)) +
     geom_density(alpha = 0.2) +
     theme_classic() +
-    geom_vline(xintercept = xintercept) + 
     scale_fill_manual(values = manual_colors) +
     scale_color_manual(values = manual_colors)
+  
+  if (xintercept != Inf) {
+    plot_object <- plot_object +
+      geom_vline(xintercept = xintercept)
+  }
   
   if (scale_x_log10) {
     plot_object <- plot_object +
@@ -247,8 +274,8 @@ plot_densitygraph <- function (
 plot_umap <- function(
   seurat_object, group_by,
   title, xlab, ylab,
-  legend_position,
-  color_reverse = FALSE, reduction = "umap",
+  legend_position, reduction,
+  color_reverse = FALSE,
   title_font_size = 20, x_font_size = 20, y_font_size = 20, 
   pt_size = NULL, split_by = NULL, ncol_dimplot = 1, ncol_guide = 1,
   label_clusters = FALSE, repel_labels = FALSE, label_size = 4
@@ -258,28 +285,28 @@ plot_umap <- function(
   manual_colors <- get_colors(seurat_object, color_by, color_reverse)
   
   plot_object <- DimPlot(
-    seurat_object, reduction = reduction, group.by = group_by, 
-    cols = manual_colors, 
+    seurat_object, reduction = reduction, group.by = group_by,
+    cols = manual_colors,
     pt.size = pt_size, split.by = split_by, ncol = ncol_dimplot,
     label = label_clusters, repel = repel_labels, label.size = label_size
-  ) + 
+  ) +
     ggmin::theme_min() +
-    scale_y_continuous(breaks = NULL) + 
-    scale_x_continuous(breaks = NULL) + 
-    xlab(xlab) + 
+    scale_y_continuous(breaks = NULL) +
+    scale_x_continuous(breaks = NULL) +
+    xlab(xlab) +
     ylab(ylab) +
     FontSize(
       main = title_font_size,
-      x.title = x_font_size, 
+      x.title = x_font_size,
       y.title = y_font_size
-    ) + 
-    theme(legend.position = legend_position) + 
+    ) +
+    theme(legend.position = legend_position) +
     labs(title = title) +
     guides(colour = guide_legend(
-      override.aes = list(size = 5), 
-      title.theme = element_text(size = 15, face = "bold"), 
-      title.position = "top", 
-      label.theme = element_text(size = 15), 
+      override.aes = list(size = 5),
+      title.theme = element_text(size = 15, face = "bold"),
+      title.position = "top",
+      label.theme = element_text(size = 15),
       ncol = ncol_guide
     ))
   return (plot_object)
@@ -294,6 +321,7 @@ plot_dotgraph <- function (
   dot_scale = 5, scale = TRUE,
   color_palette_option = "plasma"
 ) {
+  features <- case_sensitive_features(seurat_object, features)
   plot_object <- DotPlot(
     seurat_object, group.by = group_by, dot.scale = dot_scale,
     features = features, scale = scale
@@ -327,17 +355,27 @@ plot_dotgraph <- function (
 
 #################### TEMPLATE FEATURE PLOT ###################
 plot_featureplot <- function(
-  seurat_object, feature_gene, split_by,
+  seurat_object, feature_gene, split_by, reduction,
   order = TRUE, label = TRUE, label_size = 2,
   cols = Nour_cols(c("darkpurple", "lightorange")), pt_size = 0.1,
   legend_title_position = "top", legend_title_size = 10,
   legend_location = "right",
   ncol = 3, nrow = 1, widths = c(0.03, 1, 1)
 ) {
+  feature_gene <- case_sensitive_features(
+    seurat_object,
+    c(feature_gene)
+  )
+  if (length(feature_gene) == 0) {
+    stop(paste0("could not find gene feature: ", feature_gene))
+  } else {
+    feature_gene <- feature_gene[[1]]
+  }
+  
   F1 <- FeaturePlot(
     seurat_object, features = feature_gene, split.by = split_by,
     order = order, label = label, label.size = label_size,
-    cols = cols, pt.size = pt_size
+    cols = cols, pt.size = pt_size, reduction = reduction
   )
   legend <- get_legend(
     F1[[2]] +
@@ -373,24 +411,26 @@ plot_heatmap <- function(
   label_n_markers <- get_top_cluster_markers(markers, label_n)
   
   subset <- subset(seurat_object, downsample = downsample_n)
-  # seurat_sce <- as.SingleCellExperiment(subset)
+  sorted_barcodes <- names(sort(subset$ClusterRNA))
   
   # plot data rows are genes, cols are cells
-  plot_data <- as.data.frame(SeuratObj@assays$RNA@scale.data)
-  # plot_data <- as.data.frame(assay(seurat_sce, data_type))
+  plot_data <- as.data.frame(subset@assays$RNA@scale.data)
   plot_data <- plot_data[top_n_markers$gene, ]
   plot_data <- na.omit(plot_data)
   plot_data <- plot_data - rowMeans(plot_data)
   
-  # column_annot rows are cells, 
+  # col_anno_df rows are cells
   # cols are "ClusterRNA" / "ClusterWNN", "Sample"
   col_anno_df <- subset@meta.data[, c(cluster, "Sample"), drop = F] 
-  col_anno_df$Sample = as.factor(col_anno_df$Sample)
   # heatmap is ordered in cluster (primary) and then sample (secondary)
-  col_anno_df <- with(col_anno_df, col_anno_df[order("Sample"), , drop = F])
-  col_anno_df <- with(col_anno_df, col_anno_df[order(cluster), , drop = F])
+  col_anno_df <- col_anno_df[
+    order(col_anno_df[[cluster]], col_anno_df$Sample), 
+    , 
+    drop = F
+  ]
+  
   # order cells by cluster (primary) and sample (secondary)
-  plot_data <- plot_data[, row.names(col_anno_df)]
+  plot_data <- plot_data[rownames(col_anno_df)]
   
   # sample and cluster colors are reverse of each other
   sample_colors <- get_colors(
@@ -406,8 +446,7 @@ plot_heatmap <- function(
   column_colors[["Sample"]] <- sample_colors
   column_colors[[cluster]] <- cluster_colors
   
-  Sample = as.matrix(col_anno_df[, c("Sample"), drop = F])
-  Cluster = as.matrix(col_anno_df[, c(cluster), drop = F])
+  
   
   col_anno <- columnAnnotation(
     df = col_anno_df,
@@ -447,7 +486,7 @@ plot_heatmap <- function(
   )
   
   lgd1 <- Legend(
-    labels = unique(as.vector(as.matrix(SeuratObj[[cluster]]))),
+    labels = unique(as.vector(as.matrix(col_anno_df[[cluster]]))),
     title = "Cluster",
     legend_gp = gpar(fill = cluster_colors, fontsize = 25)
   )

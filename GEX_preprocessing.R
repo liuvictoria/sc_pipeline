@@ -31,8 +31,7 @@ for(i in 1:length(FILES)){
     # ADT data, for removing bad cells QC
     SeuratObjMYSC[["ADT"]] <- CreateAssayObject(
       MYSC[["Antibody Capture"]][, colnames(x = SeuratObjMYSC)])
-    }
-  
+  }
   
   # QC for mitochondrial RNA
   SeuratObjMYSC$log10GenesPerUMI <- log10(SeuratObjMYSC$nFeature_RNA) / 
@@ -155,15 +154,16 @@ for(i in 1:length(FILES)){
   ] <- "DoubletStatus"
 
   # save plot
+  D <- DimPlot(
+    SeuratObjMYSC, split.by = "DoubletStatus",
+    order = TRUE, shuffle = TRUE
+  )
   pdf(paste0(
     QCDirectory, FILES[i],
     "Doublet status dimplot.pdf"
   ), width = 8, height = 5.5, family = FONT_FAMILY
   )
-  DimPlot(
-    SeuratObjMYSC, split.by = "DoubletStatus",
-    order = TRUE, shuffle = TRUE
-  )
+  D
   dev.off()
 
   # save object
@@ -179,7 +179,6 @@ SeuratObj <- merge(
   x = SeuratSamples[[1]], y = SeuratSamples[-1], 
   add.cell.ids = config$FILES
 )
-
 
 # plot doublet status
 PDS <- plot_bargraph (
@@ -276,22 +275,22 @@ dev.off()
 # plot
 x1 <- plot_densitygraph (
   seurat_object = SeuratObj, aesX = "nCount_RNA", fill = "Sample",
-  color_by = "Sample", xintercept = 1000, scale_x_log10 = TRUE
+  color_by = "Sample", scale_x_log10 = TRUE
 )
 
 x2 <- plot_densitygraph (
   seurat_object = SeuratObj, aesX = "nFeature_RNA", fill = "Sample",
-  color_by = "Sample", xintercept = 500, scale_x_log10 = TRUE
+  color_by = "Sample", xintercept = config$nFeature_RNA, scale_x_log10 = TRUE
 )
 
 x3 <- plot_densitygraph (
   seurat_object = SeuratObj, aesX = "mito_ratio", fill = "Sample",
-  color_by = "Sample", xintercept = 0.015
+  color_by = "Sample", xintercept = config$mito_ratio
 )
 
 x4 <- plot_densitygraph (
   seurat_object = SeuratObj, aesX = "log10GenesPerUMI", fill = "Sample",
-  color_by = "Sample", xintercept = 0.8, scale_x_log10 = TRUE
+  color_by = "Sample", scale_x_log10 = TRUE
 )
 
 XX <- grid_arrange_shared_legend(
@@ -477,7 +476,6 @@ SeuratObj <- RunUMAP(
   reduction.key = "umapRNA_"
 )
 
-
 ################ FIND CLUSTER BIOMARKERS (GEX) ################
 # set default assay and identity
 DefaultAssay(SeuratObj) <- "RNA"
@@ -498,29 +496,48 @@ write.csv(
   markers, 
   paste0(
     OutputDirectory, ObjName, Subset, 
-    " RNA cluster markers (by GEX)", "res", RESOLUTION, ".csv"
+    " RNA cluster markers (by RNA)", "res", RESOLUTION, ".csv"
   )
 )
 
 
 
+
+########## SAVE LOUPE PROJECTIONS ##########
+write.csv(
+  Embeddings(SeuratObj, "umapRNA"), 
+  paste0(LoupeDirectory, Subset, "_umapRNA.csv")
+)
+
+# sample and Seurat cluster by cell barcode
+write.csv(
+  select(SeuratObj@meta.data, ClusterRNA), 
+  paste0(LoupeDirectory, Subset, "_clusters.csv")
+)
+
+write.csv(
+  select(SeuratObj@meta.data, Sample), 
+  paste0(LoupeDirectory, Subset, "_samples.csv")
+)
+
+
 ############## SAVE SEURAT AND SESSION INFO, LOOSE ENDS ################
 saveRDS(
   SeuratObj, 
-  file = paste0(RobjDirectory, ObjName, Subset, "_GEX", ".rds")
+  file = paste0(RobjDirectory, ObjName, Subset, "_RNA", ".rds")
 )
 
 
 # capture session info, versions, etc.
 writeLines(
   capture.output(sessionInfo()), 
-  paste0(ConfigDirectory, ObjName, Subset, "sessionInfo_GEX.txt")
+  paste0(ConfigDirectory, ObjName, "_", Subset, "_sessionInfo_RNA.txt")
 )
 file.copy(
   from = here("config.json"), 
-  to = paste0(ConfigDirectory, ObjName, Subset, "config_params_GEX.json")
+  to = paste0(ConfigDirectory, ObjName, "_", Subset, "_config_params_RNA.json")
 )
 file.copy(
   from = here("analysis.json"), 
-  to = paste0(ConfigDirectory, ObjName, Subset, "analysis_params_GEX.json")
+  to = paste0(ConfigDirectory, ObjName, "_", Subset, "_analysis_params_RNA.json")
 )

@@ -98,7 +98,8 @@ saveRDS(
 )
 
 ########### BATCH INTEGRATION (ADT) ###########
-DefaultAssay(SeuratObj) <- "ADT"
+SeuratObj <- RenameAssays(SeuratObj, ADT = "ADTpreInt")
+DefaultAssay(SeuratObj) <- "ADTpreInt"
 # normalize per sample
 # using CLR normalization based on: 
 # https://satijalab.org/seurat/articles/weighted_nearest_neighbor_analysis.html
@@ -106,7 +107,7 @@ samples_list <- SplitObject(SeuratObj, split.by = config$batch_norm_by) %>%
   lapply(
     FUN = function(x) {
       x <- NormalizeData(
-        x, normalization.method = "CLR", margin = 2, assay = "ADT"
+        x, normalization.method = "CLR", margin = 2, assay = "ADTpreInt"
       )
     }
   )
@@ -125,11 +126,11 @@ cell_anchors <- FindIntegrationAnchors(
 SeuratObj_ADT <- IntegrateData(
   anchorset = cell_anchors, 
   normalization.method = "LogNormalize",
-  new.assay.name = "integratedADT"
+  new.assay.name = "ADT"
 )
 
 # scale data & dimreduc PCA, in prep for WNN
-DefaultAssay(SeuratObj_ADT) <- "integratedADT"
+DefaultAssay(SeuratObj_ADT) <- "ADT"
 SeuratObj_ADT <- SeuratObj_ADT %>%
   ScaleData() %>%
   RunPCA(reduction.name = "pcaADT")
@@ -138,7 +139,7 @@ SeuratObj_ADT <- SeuratObj_ADT %>%
 # necessary bc IntegrateData destroys scale.data for all assays
 # ignore any warnings about offending keys
 # ref: https://github.com/satijalab/seurat/issues/3843
-SeuratObj[["integratedADT"]] <- SeuratObj_ADT[["integratedADT"]]
+SeuratObj[["ADT"]] <- SeuratObj_ADT[["ADT"]]
 SeuratObj[["pcaADT"]] <- SeuratObj_ADT[["pcaADT"]]
 
 E2 <- ElbowPlot(SeuratObj, ndims = 15, reduction = "pcaADT")
@@ -200,7 +201,7 @@ SeuratObj <- RunUMAP(
 Idents(SeuratObj) <- CellInfo$ClusterWNN
 markers1 <- FindAllMarkers(
   SeuratObj,
-  assay = "RNA",
+  assay = "RNApreSCT",
   logfc.threshold = 0.5, 
   test.use = "wilcox", 
   only.pos = TRUE
@@ -208,7 +209,7 @@ markers1 <- FindAllMarkers(
 
 markers2 <- FindAllMarkers(
   SeuratObj,
-  assay = "ADT",
+  assay = "ADTpreInt",
   logfc.threshold = 0.5, 
   test.use = "wilcox", 
   only.pos = TRUE
@@ -251,9 +252,3 @@ file.copy(
   from = here("analysis.json"), 
   to = paste0(ConfigDirectory, "analysis_params_ADT.json")
 )
-##################### scanpy testing #################3
-SaveH5Seurat(SeuratObj, filename = "SeuratObjH5")
-Convert("SeuratObjH5.h5seurat", dest = "h5ad")
-
-Convert("SeuratObjH5.h5ad", dest = "h5seurat")
-temp <- LoadH5Seurat("SeuratObjH5.h5seurat")

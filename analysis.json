@@ -1,4 +1,20 @@
 {
 	"pcaADT_dims": 12,
-	"harmonyRNA_dims": 12
+	"harmonyRNA_dims": 12,
+	"viz_assay": "RNA",
+	"viz_clustering": "RNA",
+	"clustifyr_assay": "RNApreSCT",
+	"cell_assignment" : {
+		"C01": "Tcells",
+		"C02":	"Tcells",
+		"C03":	"Microglia",
+		"C04":	"Microglia",
+		"C05":	"Glioma",
+		"C06":	"Glioma",
+		"C07":	"Glioma",
+		"C08":	"Glioma",
+		"C09":	"Myeloid",
+		"C10":	"Bcells",
+		"C11" : "Myeloid"
+	}
 }
