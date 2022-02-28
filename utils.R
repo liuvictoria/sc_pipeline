@@ -91,7 +91,11 @@ outdir <- paste0(Directory, "/Output/")
 if (! dir.exists(outdir)) dir.create(outdir)
 
 
-OutputDirectory <- paste0(Directory, "/Output/", Subset, "/")
+OutDirectory <- paste0(Directory, "/Output/", Subset, "/")
+if (! dir.exists(OutDirectory)) dir.create(OutDirectory)
+OutputDirectory <- paste0(
+  OutDirectory, "/", ObjName, "Res", config$RESOLUTION, "/"
+  )
 if (! dir.exists(OutputDirectory)) dir.create(OutputDirectory)
 ConfigDirectory <- paste0(OutputDirectory, "/Configs/")
 if (! dir.exists(ConfigDirectory)) dir.create(ConfigDirectory)

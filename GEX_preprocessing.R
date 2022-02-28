@@ -423,7 +423,7 @@ E1 <- ElbowPlot(SeuratObj, ndims = 15, reduction = "harmonyRNA")
 
 pdf(paste0(
   ElbowDirectory, ObjName, Subset, 
-  " elbow plot after CC regression and harmony (GEX).pdf"
+  " elbow plot after CC regression and harmony.pdf"
 ), width = 12, height = 4.5, family = FONT_FAMILY
 )
 E1
@@ -506,25 +506,28 @@ write.csv(
 ########## SAVE LOUPE PROJECTIONS ##########
 write.csv(
   Embeddings(SeuratObj, "umapRNA"), 
-  paste0(LoupeDirectory, Subset, "_umapRNA.csv")
+  paste0(LoupeDirectory, ObjName, Subset, "_umapRNA.csv")
 )
 
 # sample and Seurat cluster by cell barcode
 write.csv(
   select(SeuratObj@meta.data, ClusterRNA), 
-  paste0(LoupeDirectory, Subset, "_clusters.csv")
+  paste0(LoupeDirectory, ObjName, Subset, "_clusters.csv")
 )
 
 write.csv(
   select(SeuratObj@meta.data, Sample), 
-  paste0(LoupeDirectory, Subset, "_samples.csv")
+  paste0(LoupeDirectory, ObjName, Subset, "_samples.csv")
 )
 
 
 ############## SAVE SEURAT AND SESSION INFO, LOOSE ENDS ################
 saveRDS(
   SeuratObj, 
-  file = paste0(RobjDirectory, ObjName, Subset, "_RNA", ".rds")
+  file = paste0(
+    RobjDirectory, ObjName, Subset, 
+    "_res", config$RESOLUTION, ".rds"
+    )
 )
 
 

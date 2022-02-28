@@ -6,7 +6,10 @@ analyses <- fromJSON(file = here("analysis.json"))
 
 # this object is fully pre-processed for GEX
 SeuratObj <- readRDS(
-  paste0(RobjDirectory, ObjName, Subset, "_", analyses$viz_assay, ".rds")
+  paste0(
+    RobjDirectory, ObjName, Subset, 
+    "_res", config$RESOLUTION, ".rds"
+    )
 )
 
 # contains results of FindAllMarkers
@@ -32,7 +35,7 @@ HM_object <- plot_heatmap (
 
 pdf(paste0(
   heatDirectory, "heatmap", ObjName, Subset, 
-  "res", RESOLUTION, "_top20 genes per ", 
+  "_res", RESOLUTION, "_top20 genes per ", 
   analyses$viz_clustering, "Cluster.pdf"
 ), width = 7, height = 6
 )
@@ -116,8 +119,8 @@ U1 <- plot_umap(
 )
 
 pdf(paste0(
-  UMAPDirectory, ObjName, Subset, "_",
-  "res", RESOLUTION, 
+  UMAPDirectory, ObjName, Subset,
+  "_res", RESOLUTION, 
   "_", analyses$viz_clustering, "Clusters_UMAP.pdf"
 ), width = 5.5, height = 6, family = FONT_FAMILY
 )
@@ -137,8 +140,8 @@ U2 <- plot_umap(
 
 
 pdf(paste0(
-  UMAPDirectory, ObjName, Subset, "_",
-  "res", RESOLUTION, 
+  UMAPDirectory, ObjName, Subset,
+  "_res", RESOLUTION, 
   "_Samples_UMAP.pdf"
 ), width = 5.5, height = 6, family = FONT_FAMILY
 )
@@ -159,9 +162,9 @@ U3 <- plot_umap (
 )
 
 pdf(paste0(
-  UMAPDirectory, ObjName, Subset, "_",
-  "res", RESOLUTION, "_",
-  analyses$viz_clustering, "Cluster_UMAP_Iteration_by_sample.pdf"
+  UMAPDirectory, ObjName, Subset,
+  "_res", RESOLUTION, "_",
+  analyses$viz_clustering, "Clusters_UMAP_Iteration_by_sample.pdf"
 ), width = 12, height = 8, family = FONT_FAMILY
 )
 U3
@@ -204,7 +207,7 @@ correlation_coefficients <- cor_to_call(
 # plot heatmap
 pdf(paste0(
   heatDirectory, "heatmap", ObjName, Subset, 
-  "res", RESOLUTION, "_cellIdentities_", 
+  "_res", RESOLUTION, "_cellIdentities_", 
   analyses$viz_clustering, "Cluster.pdf"
 ), width = 7, height = 6
 )
@@ -255,7 +258,8 @@ dev.off()
 
 
 D2 <- plot_dotgraph(
-  seurat_object = SeuratObj, group_by = "Cluster",
+  seurat_object = SeuratObj, 
+  paste0(group_by = "Cluster", analyses$viz_clustering),
   features = unique(get_top_cluster_markers(markers, 2)$gene),
   title = "Top 2 genes by cluster"
 )
@@ -263,7 +267,7 @@ D2 <- plot_dotgraph(
 
 pdf(paste0(
   dotDirectory, "dotplot ", ObjName, Subset, "top 2 genes by Cluster.pdf"
-), width = 10, height = 3.5
+), width = 10, height = 5
 )
 D2
 dev.off()
@@ -354,7 +358,9 @@ U4 <- plot_umap(
 
 pdf(paste0(
   UMAPDirectory, ObjName, Subset, 
-  "res", RESOLUTION, "_Assignment UMAP.pdf"
+  "_res", RESOLUTION, 
+  "_", analyses$viz_clustering,
+  "Clusters_Assignment UMAP.pdf"
 ), width = 5.5, height = 6, family = FONT_FAMILY
 )
 U4
@@ -364,7 +370,7 @@ plots2 <- ggarrange(U1, U2, U4, ncol = 3)
 
 pdf(paste0(
   UMAPDirectory, ObjName, Subset, 
-  "res", RESOLUTION, "_all UMAPs.pdf"
+  "_res", RESOLUTION, "_all UMAPs.pdf"
 ), width = 15, height = 6, family = FONT_FAMILY
 )
 print(plots2)
@@ -383,7 +389,9 @@ U5 <- plot_umap(
 
 pdf(paste0(
   UMAPDirectory, ObjName, Subset, 
-  "Assignment UMAP Iteration by sample.pdf"
+  "_res", RESOLUTION, 
+  "_", analyses$viz_clustering,
+  "Clusters_Assignment UMAP Iteration by sample.pdf"
 ), width = 12, height = 12, family = FONT_FAMILY
 )
 U5
@@ -448,5 +456,8 @@ dev.off()
 ############## SAVE SEURAT AND SESSION INFO, LOOSE ENDS ################
 saveRDS(
   SeuratObj, 
-  file = paste0(RobjDirectory, ObjName, Subset, "_RNA", ".rds")
+  file = paste0(
+    RobjDirectory, ObjName, Subset, 
+    "_res", config$RESOLUTION, ".rds"
+    )
 )
