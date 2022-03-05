@@ -12,6 +12,13 @@ SeuratObj <- readRDS(
     )
 )
 
+# if this is a denovo object, it may contain type info
+# inherited from its superset parent
+if (analyses$denovo) {
+  SeuratObj$type <- NULL
+  SeuratObj$r <- NULL
+}
+
 # contains results of FindAllMarkers
 markers <- read.csv(
   paste0(
@@ -172,9 +179,20 @@ dev.off()
 
 
 ################# (CUSTOM) CELL POPULATION: CLUSTIFYR ###################
-REF_MATRIX = cbmc_ref
-REF_MARKERS = cbmc_m
+REF_MATRIX = NA
+REF_MARKERS = NA
 # determine which reference matrix / gene list to use
+refSeuratObj <- readRDS(
+  paste0(
+    RobjDir,
+    "GBMAtlas/", 
+    "TcellClusters-7-22-21-goodwithoutcluster6 new patient names.rds"
+  )
+)
+REF_MATRIX <- seurat_ref(
+  seurat_object = refSeuratObj,       
+  cluster_col = "Assignment"   
+)
 
 # clustify using predefined gene lists
 # only supports using jaccard metric
@@ -227,12 +245,13 @@ SeuratObj@meta.data <- call_to_metadata(
 )
 
 SeuratObj$Assignment <- SeuratObj$type
-SeuratObj$type <- NA
+SeuratObj$type <- NULL
 
 ################# (CUSTOM) CELL POPULATIONS: DOTPLOTS ###################
 # loads Clusterspecificgenes
-load(paste0(here(), "/", "Clusterspecificgenes"))
-
+Clusterspecificgenes <- analyses[[
+  paste0(analyses[["denovo_lineage"]], "_lineage_markers")
+  ]]
 dotgraphs <- list()
 for (cluster_name in names(Clusterspecificgenes)) {
   cluster_genes <- Clusterspecificgenes[[cluster_name]]
@@ -248,9 +267,9 @@ plots <- ggarrange(plots = dotgraphs, nrow = length(Clusterspecificgenes))
 
 
 pdf(paste0(
-  OutputDirectory, "dotplot ", ObjName, Subset,
+  dotDirectory, "dotplot ", ObjName, Subset,
   "by predefined Cluster.pdf"
-), width = 18, height = 18, family = FONT_FAMILY
+), width = 10, height = 40, family = FONT_FAMILY
 )
 print(plots)
 dev.off()
@@ -259,15 +278,15 @@ dev.off()
 
 D2 <- plot_dotgraph(
   seurat_object = SeuratObj, 
-  paste0(group_by = "Cluster", analyses$viz_clustering),
-  features = unique(get_top_cluster_markers(markers, 2)$gene),
-  title = "Top 2 genes by cluster"
+  group_by = paste0("Cluster", analyses$viz_clustering),
+  features = unique(get_top_cluster_markers(markers, 5)$gene),
+  title = "Top 5 genes by cluster"
 )
 
 
 pdf(paste0(
-  dotDirectory, "dotplot ", ObjName, Subset, "top 2 genes by Cluster.pdf"
-), width = 10, height = 5
+  dotDirectory, "dotplot ", ObjName, Subset, "top 5 genes by Cluster.pdf"
+), width = 16, height = 5
 )
 D2
 dev.off()
@@ -282,7 +301,7 @@ dev.off()
 # add loupe projection
 write.csv(
   select(SeuratObj@meta.data, Assignment), 
-  paste0(LoupeDirectory, Subset, "_assignments.csv")
+  paste0(LoupeDirectory, ObjName, Subset, "_assignments.csv")
 )
 
 ################# ASSIGNMENT BARGRAPHS ###################
@@ -336,11 +355,26 @@ pdf(paste0(
 P7
 dev.off()
 
-plots = ggarrange(P2, P3, P4, P5, P6, P7, ncol = 2)
+P8 <- plot_bargraph (
+  seurat_object = SeuratObj, aesX = "Sample", fill = "Assignment",
+  y_label = "Composition (percentage of cells)", x_label = NULL,
+  y_lower_limit = 0, y_break = 1000, position = "fill"
+)
+
+pdf(paste0(
+  densityplotDirectory, ObjName, Subset, 
+  "res", RESOLUTION,
+  "_percentage of cells per sample and Assignment barplot.pdf"
+), width = 6, height = 5.5, family = FONT_FAMILY
+)
+P8
+dev.off()
+
+plots = ggarrange(P2, P5, P8, P3, P4, P6, P7, ncol = 2)
 pdf(paste0(
   densityplotDirectory, ObjName, Subset, 
   "res", RESOLUTION, "_all barplots.pdf"
-), width = 18, height = 18, family = FONT_FAMILY
+), width = 18, height = 22, family = FONT_FAMILY
 )
 print(plots)
 dev.off()

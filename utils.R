@@ -53,15 +53,7 @@ library(Nourpal)
 
 ################ SET PARAMETERS ###############
 DOUBLET_FORMATION_RATE <- config$DOUBLET_FORMATION_RATE
-ADT_PRESENT <- config$ADT_PRESENT
-USE_ADT <- config$USE_ADT
-if (USE_ADT) {
-  for (presence in ADT_PRESENT) {
-    if (! presence) {
-      stop("Trying to use ADT, but ADT is not present for all samples")
-    }
-  }
-}
+
 # resolution for cluster-finding after PCA
 RESOLUTION <- config$RESOLUTION
 # if we are doing scTransform
@@ -70,6 +62,18 @@ SCT <- config$SCT
 FONT_FAMILY <- config$FONT_FAMILY
 # files to analyze
 FILES = config$FILES
+
+ADT_PRESENT <- config$ADT_PRESENT
+USE_ADT <- config$USE_ADT
+if (USE_ADT) {
+  regexp <- "[[:digit:]]+"
+  for (file in FILES) {
+    if (! ADT_PRESENT[[str_extract(file, regexp)]]) {
+      stop("Trying to use ADT, but ADT is not present for all samples")
+    }
+  }
+}
+
 # saving files
 ObjName <- config$ObjName
 Subset <- config$Subset
@@ -79,6 +83,8 @@ Directory <- config$Directory
 if (! dir.exists(Directory)) dir.create(Directory)
 setwd(Directory)
 
+# DO NOT CHANGE RobjDir (needed for reading in .rds)
+# kind of like extra level of specification
 RobjDir <- paste0(Directory, "/R_Objects/")
 if (! dir.exists(RobjDir)) dir.create(RobjDir)
 RobjDirectory <- paste0(RobjDir, Subset, "/")
@@ -573,3 +579,131 @@ theme_min2 <- function(base_size = 11, base_family = "") {
 }
 }
 
+
+###################### PREPROCESSING FUNCTIONS ###################
+# created here, so as to avoid code duplication
+{
+############ NORMALIZATION ##############
+GEX_normalization <- function(SeuratObj){
+  DefaultAssay(SeuratObj) <- "RNA"
+  
+  # SCT for GEX
+  if (SCT) {
+    # rename for ease of use; no matter if SCT or NormalizeData,
+    # we would like to use "RNA" assay from now on
+    SeuratObj <- SCTransform(
+      SeuratObj,
+      assay = "RNApreSCT",
+      new.assay.name = "RNA",
+      method = "glmGamPoi", verbose = FALSE
+    )
+    
+  } else {
+    SeuratObj <- SeuratObj %>% 
+      NormalizeData(assay = "RNA") %>%
+      FindVariableFeatures(assay = "RNA") %>%
+      ScaleData(assay = "RNA")
+  }
+  
+  
+  # plot variable features
+  top10 <- head(VariableFeatures(SeuratObj), 10, assay = "RNA")
+  plot1 <- VariableFeaturePlot(SeuratObj)
+  plot2 <- LabelPoints(plot = plot1, points = top10, size = 3)
+  pdf(paste0(
+    QCDirectory, ObjName, Subset, 
+    " GEX variable freatures.pdf"
+  ), width = 8, height = 5.5, family = FONT_FAMILY
+  )
+  print(plot2 + theme_min())
+  dev.off()
+  return (SeuratObj)
+}
+
+############ PCA ##############
+GEX_pca <- function(SeuratObjMYSC, file) {
+  SeuratObjMYSC <- RunPCA(
+    SeuratObjMYSC,
+    features = VariableFeatures(object = SeuratObjMYSC)
+  )
+  # most representative (by absolute value) genes for PCs
+  VS = VizDimLoadings(SeuratObjMYSC, dims = 1:2, reduction = "pca")
+  VSD = DimPlot(SeuratObjMYSC, reduction = "pca") + theme_min()
+  
+  # save plot
+  pdf(paste0(
+    QCDirectory, file, " GEX PCA features and plot.pdf"
+  ),
+  width = 12, height = 4.5, family = FONT_FAMILY
+  )
+  grid.arrange(
+    VS[[1]] + theme_min(),
+    VS[[2]] + theme_min(),
+    VSD,
+    nrow = 1, widths = c(0.6, 0.6, 1)
+  )
+  dev.off()
+  return (SeuratObjMYSC)
+}
+
+######## LOUVAIN CLUSTERING (GEX) ########
+GEX_louvain <- function(
+  SeuratObj, reduction = "harmonyRNA", cluster_prefix = "C"
+) {
+  DefaultAssay(SeuratObj) <- "RNA"
+  
+  SeuratObj <- SeuratObj %>%
+    FindNeighbors(
+      reduction = reduction, 
+      dims = c(1:analyses$harmonyRNA_dims)
+    ) %>%
+    FindClusters(resolution = RESOLUTION)
+  
+  
+  CellInfo <- SeuratObj@meta.data
+  # Rename Clusters
+  cluster_count <- length(
+    levels(as.factor(SeuratObj@meta.data$seurat_clusters))
+  )
+  for(j in 1 : cluster_count){
+    if (j < 10){
+      CellInfo$ClusterRNA[CellInfo$seurat_clusters == j - 1] <- 
+        paste0(cluster_prefix, "0", j)
+    }
+    else {
+      CellInfo$ClusterRNA[CellInfo$seurat_clusters == j - 1] <- 
+        paste0(cluster_prefix, j)
+    }
+  }
+  SeuratObj@meta.data <- CellInfo
+  Idents(SeuratObj) <- CellInfo$ClusterRNA
+  
+  # Get number of cells per cluster and per Sample
+  write.csv(
+    as.matrix(table(SeuratObj@meta.data$ClusterRNA, SeuratObj@meta.data$Sample)),
+    file = paste0(
+      OutputDirectory, ObjName, Subset, 
+      " number of cells per cluster and sample.csv"
+    )
+  )
+  return (SeuratObj)
+}
+
+################ FIND CLUSTER BIOMARKERS (GEX) ################
+GEX_cluster_markers <- function(SeuratObj) {
+  DefaultAssay(SeuratObj) <- "RNA"
+  Idents(SeuratObj) <- "ClusterRNA"
+  if (SCT) {
+    SeuratObj <- PrepSCTFindMarkers(SeuratObj, assay = "RNA")
+  }
+  markers <- FindAllMarkers(
+    SeuratObj,
+    assay = "RNA",
+    logfc.threshold = 0.5, 
+    test.use = "wilcox", 
+    only.pos = TRUE
+  )
+  return (markers)
+}
+
+}

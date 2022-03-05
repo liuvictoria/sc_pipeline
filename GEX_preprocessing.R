@@ -40,7 +40,12 @@ for(i in 1:length(FILES)){
   SeuratObjMYSC$mito_ratio <- PercentageFeatureSet(
     SeuratObjMYSC, pattern = "^MT-"
   )
-  SeuratObjMYSC$mito_ratio <- SeuratObjMYSC@meta.data$mito_ratio / 100
+  SeuratObjMYSC$mito_ratio <- SeuratObjMYS$mito_ratio / 100
+  
+  SeuratObjMYSC$ribo_ratio <- PercentageFeatureSet(
+    SeuratObjMYSC, pattern = "^RP[LS]"
+  )
+  SeuratObjMYSC$ribo_ratio <- SeuratObjMYSC$ribo_ratio / 100
   
   #filter by removing cells that didn't pass qc
   SeuratObjMYSC <- subset(
@@ -73,28 +78,8 @@ for(i in 1:length(FILES)){
       ScaleData(assay = "RNA")
   }
   
-  #Run PCA
-  SeuratObjMYSC <- RunPCA(
-    SeuratObjMYSC,
-    features = VariableFeatures(object = SeuratObjMYSC)
-  )
-  # most representative (by absolute value) genes for PCs
-  VS = VizDimLoadings(SeuratObjMYSC, dims = 1:2, reduction = "pca")
-  VSD = DimPlot(SeuratObjMYSC, reduction = "pca") + theme_min()
-
-  # save plot
-  pdf(paste0(
-    QCDirectory, FILES[i], " GEX PCA features and plot.pdf"
-  ),
-  width = 12, height = 4.5, family = FONT_FAMILY
-  )
-  grid.arrange(
-    VS[[1]] + theme_min(),
-    VS[[2]] + theme_min(),
-    VSD,
-    nrow = 1, widths = c(0.6, 0.6, 1)
-  )
-  dev.off()
+  #Run PCA (code in utils)
+  SeuratObjMYSC <- GEX_pca(SeuratObjMYSC, FILES[i])
 
   # remove doublets
   # documentation: https://github.com/chris-mcginnis-ucsf/DoubletFinder
@@ -329,41 +314,9 @@ dev.off()
 
 
 ######## NORMALIZATION (GEX) ########
-DefaultAssay(SeuratObj) <- "RNA"
-
-# SCT for GEX
-if (SCT) {
-  # rename for ease of use; no matter if SCT or NormalizeData,
-  # we would like to use "RNA" assay from now on
-  SeuratObj <- SCTransform(
-    SeuratObj,
-    assay = "RNApreSCT",
-    new.assay.name = "RNA",
-    method = "glmGamPoi", verbose = FALSE
-  )
-
-} else {
-  SeuratObj <- SeuratObj %>% 
-    NormalizeData(assay = "RNA") %>%
-    FindVariableFeatures(assay = "RNA") %>%
-    ScaleData(assay = "RNA")
-}
-
-
-# plot variable features
-top10 <- head(VariableFeatures(SeuratObj), 10, assay = "RNA")
-plot1 <- VariableFeaturePlot(SeuratObj)
-plot2 <- LabelPoints(plot = plot1, points = top10, size = 3)
-pdf(paste0(
-  QCDirectory, ObjName, Subset, 
-  " GEX variable freatures.pdf"
-), width = 8, height = 5.5, family = FONT_FAMILY
-)
-plot2 + theme_min()
-dev.off()
-
-
-
+# function placed in utils; to avoid code duplication
+# when denovo clustering
+SeuratObj <- GEX_normalization(SeuratObj)
 ########### CELL CYCLE REGRESSION (GEX) #############
 DefaultAssay(SeuratObj) <- "RNA"
 # more general set of CC genes
@@ -405,7 +358,10 @@ if (SCT) {
 # regressing is a really long process, so save for future
 saveRDS(
   SeuratObj, 
-  file = paste0(RobjDirectory, ObjName, Subset, "_GEX", ".rds")
+  file = paste0(    
+    RobjDirectory, ObjName, Subset, 
+    "_res", config$RESOLUTION, ".rds"
+    )
 )
 
 ########### PCA & HARMONY BATCH CORRECTION (GEX) ##########
@@ -431,41 +387,10 @@ dev.off()
 
 
 ######## LOUVAIN CLUSTERING (GEX) ########
-DefaultAssay(SeuratObj) <- "RNA"
 analyses <- fromJSON(file = here("analysis.json"))
-  
-SeuratObj <- SeuratObj %>%
-  FindNeighbors(
-    reduction = "harmonyRNA", 
-    dims = c(1:analyses$harmonyRNA_dims)
-  ) %>%
-  FindClusters(resolution = RESOLUTION)
 
+GEX_louvain(SeuratObj, reduction = "harmonyRNA", cluster_prefix = "C")
 
-CellInfo <- SeuratObj@meta.data
-# Rename Clusters
-cluster_count <- length(
-  levels(as.factor(SeuratObj@meta.data$seurat_clusters))
-)
-for(j in 1 : cluster_count){
-  if (j < 10){
-    CellInfo$ClusterRNA[CellInfo$seurat_clusters == j - 1] <- paste0("C0", j)
-  }
-  else {
-    CellInfo$ClusterRNA[CellInfo$seurat_clusters == j - 1] <- paste0("C", j)
-  }
-}
-SeuratObj@meta.data <- CellInfo
-Idents(SeuratObj) <- CellInfo$ClusterRNA
-
-# Get number of cells per cluster and per Sample
-write.csv(
-  as.matrix(table(SeuratObj@meta.data$ClusterRNA, SeuratObj@meta.data$Sample)),
-  file = paste0(
-    OutputDirectory, ObjName, Subset, 
-    " number of cells per cluster and sample.csv"
-  )
-)
 
 ######## RUN UMAP (GEX) ########
 SeuratObj <- RunUMAP(
@@ -478,19 +403,7 @@ SeuratObj <- RunUMAP(
 
 ################ FIND CLUSTER BIOMARKERS (GEX) ################
 # set default assay and identity
-DefaultAssay(SeuratObj) <- "RNA"
-Idents(SeuratObj) <- CellInfo$ClusterRNA
-if (SCT) {
-  SeuratObj <- PrepSCTFindMarkers(SeuratObj, assay = "RNA")
-}
-markers <- FindAllMarkers(
-  SeuratObj,
-  assay = "RNA",
-  logfc.threshold = 0.5, 
-  test.use = "wilcox", 
-  only.pos = TRUE
-)
-
+markers <- GEX_cluster_markers(SeuratObj)
 # save, because it takes a little time to calculate
 write.csv(
   markers, 
@@ -499,9 +412,6 @@ write.csv(
     " RNA cluster markers (by RNA)", "res", RESOLUTION, ".csv"
   )
 )
-
-
-
 
 ########## SAVE LOUPE PROJECTIONS ##########
 write.csv(

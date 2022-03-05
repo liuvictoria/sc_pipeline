@@ -4,17 +4,23 @@
 	"viz_assay": "RNA",
 	"viz_clustering": "RNA",
 	"clustifyr_assay": "RNApreSCT",
-	"cell_assignment" : {
-		"C01": "Tcells",
-		"C02":	"Tcells",
-		"C03":	"Microglia",
-		"C04":	"Microglia",
-		"C05":	"Glioma",
-		"C06":	"Glioma",
-		"C07":	"Glioma",
-		"C08":	"Glioma",
-		"C09":	"Myeloid",
-		"C10":	"Bcells",
-		"C11" : "Myeloid"
+	"denovo_lineage": "T",
+	"denovo": true,
+	"denovo_superset": "AllPBMC",
+	"denovo_superset_resolution": 0.3,
+	"denovo_subset": ["CD4 T", "NK", "CD8 T"],
+	"denovo_pcaGEX_dims": 12,
+	"denovo_run_harmony": true,
+	"T_lineage_markers": {
+		"All lineages": ["Ifng", "Il17a", "LAG3"],
+		"All T": ["Cd3e", "Cd3g", "Ctla4", "GNLY"],
+		"NK": ["Nkg7", "Klrd1", "CST7", "Gzma", "Gzmb", "Itgam", "KRLB1", "GNLY"],
+		"CD8+": ["Cd8a", "Cd8B", "Gzma", "Gzmb", "GZMH", "S100B"],
+		"CD4+": ["Cd4", "IL7R", "Il17a", "ITM2A", "TXNIP", "AES"],
+		"Treg": ["Tigit", "Ctla4", "Foxp3", "Il2ra"],
+		"Memory": ["Il2ra", "S100a4"],
+		"Naive": ["Ccr7", "Tcf7"],
+		"Memory CD4+": ["CD4", "ADCY2", "PTGDR2", "CD200R1"],
+		"Naive CD4+": ["CD4", "CDHR3", "DICER1-AS1", "RAD9A"]
 	}
 }
