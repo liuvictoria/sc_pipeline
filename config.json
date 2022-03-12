@@ -6,6 +6,7 @@
 	"ObjName": "GEX",
 	"Subset": "TPBMC",
 	"nFeature_RNA": 200,
+	"ribo_ratio": 0.4,
 	"mito_ratio": 0.15,
 	"nFeature_ADT": 40,
 	"DOUBLET_FORMATION_RATE": 0.075,
@@ -22,7 +23,8 @@
 	"USE_ADT": false,
 	"SCT": true,
 	"batch_norm_by": "Sample",
-	"RESOLUTION": 0.3,
+	"RESOLUTIONS": [0.3, 0.5, 0.7, 0.8, 0.9, 1, 1.2],
+	"RESOLUTION": "All",
 	"sample_info": {
 		"8" : "CONTROL1_blood",
 		"9" : "CONTROL2_blood",

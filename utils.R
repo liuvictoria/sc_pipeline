@@ -19,9 +19,20 @@ library(easypackages)
 # BiocManager::install("clustifyr")
 # # gamma poisson generalized linear model
 # BiocManager::install("glmGamPoi")
+# BiocManager::install("celldex")
+# BiocManager::install("SingleR")
+# BiocManager::install("biomaRt")
+
+# install.packages("tidyverse")
+# install.packages('clustree') 
+# install.packages("pheatmap")
+
 
 # remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')
-# remotes::install_github("mojaveazure/seurat-disk")
+# # remotes::install_github("mojaveazure/seurat-disk")
+# remotes::install_github("carmonalab/UCell", ref="v1.3")
+# remotes::install_github("carmonalab/scGate")
+# remotes::install_github("carmonalab/ProjecTILs")
 # devtools::install_github("sjessa/ggmin")
 # install.packages("magick")
 # install.packages("gmailr", repos="http://cran.r-project.org")
@@ -34,7 +45,9 @@ MyPackages <- c(
   "SingleCellExperiment", "ggmin", "Nourpal", "Cairo",
   "DoubletFinder", "harmony", "magick", "viridis", "limma", 
   "glmGamPoi", "gmailr", "rjson", "here", "SeuratDisk",
-  "gplots", "clustifyr", "fgsea"
+  "gplots", "clustifyr", "fgsea", "purrr", "clustree",
+  "SingleR", "celldex", "ProjecTILs", "biomaRt", "data.table",
+  "umap", "pheatmap"
 )
 
 # similar to libaries, but will install package as well
@@ -55,7 +68,9 @@ library(Nourpal)
 DOUBLET_FORMATION_RATE <- config$DOUBLET_FORMATION_RATE
 
 # resolution for cluster-finding after PCA
+RESOLUTIONS <- config$RESOLUTIONS
 RESOLUTION <- config$RESOLUTION
+
 # if we are doing scTransform
 SCT <- config$SCT
 # font family for output plots
@@ -109,6 +124,8 @@ if (! dir.exists(ConfigDirectory)) dir.create(ConfigDirectory)
 
 QCDirectory <- paste0(OutputDirectory, "/QualityControl/")
 if (! dir.exists(QCDirectory)) dir.create(QCDirectory)
+RiboQCDirectory <- paste0(QCDirectory, "RiboQC/")
+if (! dir.exists(RiboQCDirectory)) dir.create(RiboQCDirectory)
 ElbowDirectory <- paste0(OutputDirectory, "/ElbowPlots/")
 if (! dir.exists(ElbowDirectory)) dir.create(ElbowDirectory)
 densityplotDirectory <- paste0(OutputDirectory, "/DensityPlots/")
@@ -126,9 +143,20 @@ if (! dir.exists(dotDirectory)) dir.create(dotDirectory)
 LoupeDirectory <- paste0(OutputDirectory, "/LoupeProjections/")
 if (! dir.exists(LoupeDirectory)) dir.create(LoupeDirectory)
 
+projTILDirectory <- paste0(OutputDirectory, "/projecTILs/")
+if (! dir.exists(projTILDirectory) & RESOLUTION == "All") {
+  dir.create(projTILDirectory)
+} 
+singleRDirectory <- paste0(OutputDirectory, "/singleR/")
+if (! dir.exists(singleRDirectory) & RESOLUTION == "All") {
+  dir.create(singleRDirectory)
+} 
+clustifyrDirectory <- paste0(OutputDirectory, "/clustifyr/")
+if (! dir.exists(clustifyrDirectory) & RESOLUTION != "All") {
+  dir.create(clustifyrDirectory)
+} 
 
-
-############################# HELPER FUNCTIONS ###############################
+##################### GENERIC HELPER FUNCTIONS ######################
 
 {
 ###### PLOT HEIGHT ######
@@ -147,34 +175,15 @@ get_height <- function(category) {
 
 ###### GET NOURPAL COLORS #######
 get_colors <- function(
-  seurat_object,
+  seurat_obj,
   color_by,
   color_reverse = FALSE
 ) {
   colors = Nour_pal("all", reverse = color_reverse)(
-    length(unique(as.vector(as.matrix(SeuratObj[[color_by]]))))
+    length(unique(as.vector(as.matrix(seurat_obj[[color_by]]))))
   )
-  names(colors) = sort(unique(as.vector(as.matrix(SeuratObj[[color_by]]))))
+  names(colors) = sort(unique(as.vector(as.matrix(seurat_obj[[color_by]]))))
   return (colors)
-}
-
-############### GET CASE CORRECT FEATURES ##############
-case_sensitive_features <- function(
-  seurat_object, features
-) {
-  final_features <- c()
-  for (feature in features) {
-    idx_match <- match(
-      tolower(feature), 
-      tolower(rownames(SeuratObj)),
-      nomatch = -1
-    )
-    if (idx_match != -1) {
-      final_features <- c(
-        final_features, rownames(SeuratObj)[idx_match])
-    }
-  }
-  return (unlist(final_features))
 }
 
 ###### HEATMAP ANNOTATIONS ########
@@ -191,11 +200,286 @@ get_top_cluster_markers <- function(
 }
 
 
+
+############### GET CASE CORRECT FEATURES ##############
+case_sensitive_features <- function(
+  seurat_object, features
+) {
+  final_features <- list()
+  for (seurat_gene in rownames(SeuratObj)) {
+    idx_match <- match(
+      tolower(seurat_gene),
+      tolower(features),
+      nomatch = -1
+    )
+    if (idx_match != -1) {
+      final_features[[features[[idx_match]]]] <- seurat_gene
+    }
+  }
+  
+  return (final_features)
+}
+  
+################ RENAME SEURAT FEATURE ROWS #############
+# renaming function
+# https://github.com/satijalab/seurat/issues/1049
+# Replace gene names in different slots of a Seurat object. 
+# It only changes obj@assays$integrated@counts, @data and @scale.data.
+# also changes var.features of integrated assay
+RenameGenesSeurat <- function(
+  obj, newnames, var_features, assay_name = "integrated"
+) { 
+  my_assay <- obj[[assay_name]]
+  
+  if (nrow(my_assay) == length(newnames)) {
+    
+    if (length(my_assay@counts)) {
+      rownames(my_assay@counts) <- newnames
+    }
+    if (length(my_assay@data)) {
+      rownames(my_assay@data) <- newnames
+    }
+    if (length(my_assay@scale.data)) {
+      rownames(my_assay@scale.data) <- newnames
+    }
+    
+    # add new var features
+    my_assay@var.features <- unlist(var_features, use.names=FALSE)
+  } else {
+    "Unequal gene sets: nrow(my_assay) != nrow(newnames)"
+  }
+  obj[[assay_name]] <- my_assay
+  return(obj)
+}
+
+
+}
+
+
+##################### PROJECTILS PREPROCESSING ######################
+{
+################ MOUSE TO HUMAN GENE BIOMART CONVERSION ###########
+convertMouseGeneList <- function(x){
+  if (!exists("MOUSE_BIOMART") | !exists("HUMAN_BIOMART")) {
+    HUMAN_BIOMART <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+    MOUSE_BIOMART <- useMart("ensembl", dataset = "mmusculus_gene_ensembl")
+  }
+  genesV2 = getLDS(
+    attributes = c("mgi_symbol"), 
+    filters = "mgi_symbol", 
+    values = x, 
+    mart = MOUSE_BIOMART, 
+    attributesL = c("hgnc_symbol"), 
+    martL = HUMAN_BIOMART, 
+    uniqueRows = T
+  )
+  humanx <- unique(genesV2[, 2])
+  # Print the first 6 genes found to the screen
+  print(head(humanx))
+  return(humanx)
+}
+
+
+########## PROJECTILS CUSTOM REF MAP RECOMP ###########
+# https://carmonalab.github.io/ProjecTILs.demo/build_ref_atlas.html
+projectils_ref_spec_dimreducs <- function(ref_projectils) {
+  # recalc pca / umap using projecTILs prcomp and umap
+  ### PCA ###
+  varfeat <- ref_projectils@assays[["integrated"]]@var.features
+  
+  refdata <- data.frame(t(
+    ref_projectils@assays[["integrated"]]@data[varfeat,]
+  ))
+  refdata <- refdata[, sort(colnames(refdata))]
+  
+  ref.pca <- prcomp(
+    refdata, rank. = 50, scale. = TRUE, center = TRUE, retx = TRUE)
+  
+  ref.pca$rotation[1:5,1:5]
+  
+  
+  ### UMAP ###
+  seed <- 1234
+  n.neighbors <- 30
+  min.dist <- 0.3
+  metric <- "cosine"
+  ndim <- 16
+  
+  umap.config <- umap.defaults
+  umap.config$n_neighbors <- n.neighbors
+  umap.config$min_dist <- min.dist
+  umap.config$metric <- metric
+  umap.config$n_components <- 2
+  umap.config$random_state <- seed
+  umap.config$transform_state <- seed
+  
+  ref.umap <- umap(ref.pca$x[,1:ndim], config = umap.config)
+  colnames(ref.umap$layout) <- c("UMAP_1","UMAP_2")
+  
+  ### add pca and umap info back into ref ### 
+  ref_projectils@reductions$umap@cell.embeddings <- ref.umap$layout
+  ref_projectils@reductions$pca@cell.embeddings <- ref.pca$x
+  ref_projectils@reductions$pca@feature.loadings <- ref.pca$rotation
+  colnames(ref_projectils@reductions$pca@cell.embeddings) <- 
+    gsub("PC(\\d+)", "PC_\\1", colnames(ref.pca$x), perl = TRUE)
+  colnames(ref_projectils@reductions$pca@feature.loadings) <- 
+    gsub("PC(\\d+)", "PC_\\1", colnames(ref.pca$rotation), perl = TRUE)
+  
+  #Store the complete PCA and UMAP object in @misc
+  ref_projectils@misc$pca_object <- ref.pca
+  ref_projectils@misc$umap_object <- ref.umap
+  ref_projectils@misc$projecTILs <- "custom_atlas"
+  
+  return (ref_projectils)
+}
+
+############### PROJECTILS MURINE TO HUMAN #############
+projectils_ref_full_translation <- function (
+  ref_projectils, 
+  SeuratObj,
+  novel_ref_genes_human_filename = paste0(
+    dataDirectory, "projecTILs/novel_mouse_to_human_genes.csv"
+  )
+) {
+  # we will be recalculating almost everything except integrated assay
+  ref_projectils <- DietSeurat(  
+    ref_projectils,
+    assays = "integrated"
+  )
+  ref_projectils@misc <- list()
+  
+  # start translation
+  ref_genes <- rownames(ref_projectils)
+  # most genes will already be overlapping
+  overlap_genes <- case_sensitive_features(SeuratObj, ref_genes)
+  # find genes that did not overlap
+  novel_ref_genes <- ref_genes[!(ref_genes %in% names(overlap_genes))]
+  
+  
+  # for non-overlap genes, they may be human or mouse
+  # since we don't know a priori, translate all non-overlap genes to human
+  if (file.exists(novel_ref_genes_human_filename)) {
+    # read the precalculated novel_ref_genes_human via csv
+    novel_ref_genes_human <- as.list(read.csv(
+      novel_ref_genes_human_filename
+    ))
+  } else {
+    # translate novel reference genes to human
+    # (may already be human, but might still be mouse...)
+    novel_ref_genes_human <- list()
+    for (mouse_gene in novel_ref_genes) {
+      human_gene <- convertMouseGeneList(mouse_gene)
+      if (length(human_gene) != 0) {
+        # biomart human >> ref mouse
+        novel_ref_genes_human[[human_gene[1]]] <- mouse_gene
+      }
+    }
+    # this takes a long time, so write to csv:
+    write.table(
+      novel_ref_genes_human,
+      file = novel_ref_genes_human_filename,
+      quote = FALSE, sep = ",", row.names = TRUE
+    )
+  }
+  
+  
+  # translate biomart human to Seurat human identifiers
+  # biomart human >> Seurat human
+  overlap_novel_genes_untranslated <- case_sensitive_features(
+    SeuratObj, names(novel_ref_genes_human)
+  )
+  # we ultimately want ref mouse gene >> Seurat human
+  overlap_novel_genes <- list()
+  for (human_gene_ref in names(overlap_novel_genes_untranslated)) {
+    overlap_novel_genes[[novel_ref_genes_human[[human_gene_ref]]]] <-
+      overlap_novel_genes_untranslated[[human_gene_ref]]
+  }
+  # concatenate w previous overlap genes
+  overlap_genes <- c(
+    overlap_genes,
+    overlap_novel_genes
+  )
+  
+  
+  # translate reference gene names, in order
+  ref_to_Seurat <- list()
+  for (ref_gene in ref_genes) {
+    if (ref_gene %in% names(overlap_genes)) {
+      ref_to_Seurat <- append(ref_to_Seurat, overlap_genes[[ref_gene]])
+    } else {
+      # no translation, so use original name
+      # we will exclud these genes later via var.features
+      ref_to_Seurat <- append(ref_to_Seurat, ref_gene)
+    }
+  }
+  
+  # rename feature rows across entire rej_projectils object
+  ref_projectils <- RenameGenesSeurat(
+    obj = ref_projectils, 
+    newnames = ref_to_Seurat, 
+    var_features = overlap_genes
+  )
+  
+  # scale data
+  ref_projectils <- ScaleData(ref_projectils, assay = "integrated")
+  
+  # compute pca and umaps, using Seurat methods
+  ref_projectils <- GEX_pca(ref_projectils, " projecTILs pca rerun ")
+  E1 <- ElbowPlot(ref_projectils)
+  pdf(paste0(
+    dataDirectory, "projecTILs/", " projecTILs rerun pca.pdf"
+  ), width = 12, height = 4.5, family = FONT_FAMILY
+  )
+  E1
+  dev.off()
+  
+  # umap
+  ref_projectils <- RunUMAP(
+    ref_projectils, 
+    dims = c(1:20)
+  )
+  
+  # plot
+  UprojTILs <-  plot_umap(
+    ref_projectils, group_by = "functional.cluster",
+    title = "projecTILs reference with filtered Seurat genes", 
+    xlab = "UMAP_1", ylab = "UMAP2",
+    legend_position = "right", reduction = "umap", 
+    label_clusters = TRUE
+  )
+  
+  pdf(paste0(
+    dataDirectory, "projecTILs/", 
+    " projecTILs recalculated with human genes UMAP.pdf"
+  ), width = 12, height = 7, family = FONT_FAMILY
+  )
+  UprojTILs
+  dev.off()
+  
+  # custom dimreducs, following projecTILs specs
+  ref_projectils <- projectils_ref_spec_dimreducs(ref_projectils)
+  
+  
+  saveRDS(
+    ref_projectils, 
+    file = paste0(
+      dataDirectory, "projecTILs/processed_mouse2human_reference.rds"
+    )
+  )
+  return (ref_projectils)
+}
+
+
+}
+
+############################# PLOTTING FUNCTIONS ###############################
+{
 ################ TEMPLATE GGPLOT BARPLOT ###################
 
-plot_bargraph <- function (
+plot_bargraph <-  function (
   seurat_object, aesX, fill,
   y_label, x_label, y_lower_limit, y_break,
+  title = NULL,
   color_reverse = FALSE,
   position = "stack", geom_bar_color = "black", geom_bar_width = 0.7,
   x_text_angle = 45, plot_margin = unit(c(0.5, 0.5, 0.2, 0.5), "cm")
@@ -238,7 +522,7 @@ plot_bargraph <- function (
       axis.title = element_text(size = 15, face = "bold"),
       plot.margin = plot_margin
     ) +
-    labs(y = y_label, x = x_label) +
+    labs(y = y_label, x = x_label, title = title) +
     scale_y_continuous(
       expand = c(0, 0), limits = c(y_lower_limit, y_upper_limit),
       breaks = seq(y_lower_limit, y_upper_limit, by = y_break)
@@ -251,7 +535,9 @@ plot_densitygraph <- function (
   seurat_object, aesX, fill, color_by, 
   xintercept = Inf,
   scale_x_log10 = FALSE,
-  alpha = 0.2, color_reverse = FALSE
+  alpha = 0.2, color_reverse = FALSE,
+  facet_category = NULL,
+  title = NULL
 ) {
   # get colors
   manual_colors <- get_colors(seurat_object, color_by, color_reverse)
@@ -276,8 +562,19 @@ plot_densitygraph <- function (
       scale_x_log10()
   }
   
+  if (!is.null(facet_category)) {
+    plot_object <- plot_object + 
+      facet_wrap(as.formula(paste("~", facet_category)))
+  }
+  
+  if (!is.null(title)) {
+    plot_object <- plot_object + 
+      labs(title = title)
+  }
+  
   return (plot_object)
 }
+
 
 
 ################ UMAP PLOT TEMPLATE ##################
@@ -366,11 +663,11 @@ plot_dotgraph <- function (
 #################### TEMPLATE FEATURE PLOT ###################
 plot_featureplot <- function(
   seurat_object, feature_gene, split_by, reduction,
-  order = TRUE, label = TRUE, label_size = 2,
-  cols = Nour_cols(c("darkpurple", "lightorange")), pt_size = 0.1,
+  order = TRUE, label = TRUE, label_size = 7, repel = TRUE,
+  cols = Nour_cols(c("darkpurple", "lightorange")), pt_size = 0.3,
   legend_title_position = "top", legend_title_size = 10,
   legend_location = "right",
-  ncol = 3, nrow = 1, widths = c(0.03, 1, 1)
+  ncol = 1, nrow = 1, widths = c(0.03, 1, 1)
 ) {
   feature_gene <- case_sensitive_features(
     seurat_object,
@@ -384,13 +681,12 @@ plot_featureplot <- function(
   
   F1 <- FeaturePlot(
     seurat_object, features = feature_gene, split.by = split_by,
-    order = order, label = label, label.size = label_size,
-    cols = cols, pt.size = pt_size, reduction = reduction
+    order = order, label = label, label.size = label_size, repel = repel,
+    cols = cols, pt.size = pt_size, reduction = reduction,
   )
+  
   legend <- get_legend(
-    F1[[2]] +
-      theme_min() +
-      NoAxes() +
+    F1 + NoAxes() + theme_min() +
       guides(colour = guide_colourbar(
         title = feature_gene, title.position = legend_title_position,
         title.theme = element_text(size = legend_title_size)))
@@ -398,8 +694,9 @@ plot_featureplot <- function(
   
   plot_object <- ggpubr::ggarrange(
     ggparagraph(text = " ",  size = 0),
-    F1[[1]] + theme_min2() + NoLegend() + NoAxes(),
-    F1[[2]] + theme_min2() + NoLegend() + NoAxes(),
+    F1 + NoLegend() + NoAxes()
+    # + theme_min2()
+    ,
     ncol = ncol, nrow = nrow, widths = widths,
     legend.grob = legend, legend = legend_location
   )
@@ -578,8 +875,6 @@ theme_min2 <- function(base_size = 11, base_family = "") {
     )
 }
 }
-
-
 ###################### PREPROCESSING FUNCTIONS ###################
 # created here, so as to avoid code duplication
 {
@@ -648,7 +943,8 @@ GEX_pca <- function(SeuratObjMYSC, file) {
 
 ######## LOUVAIN CLUSTERING (GEX) ########
 GEX_louvain <- function(
-  SeuratObj, reduction = "harmonyRNA", cluster_prefix = "C"
+  SeuratObj, resolution,
+  reduction = "harmonyRNA"
 ) {
   DefaultAssay(SeuratObj) <- "RNA"
   
@@ -657,38 +953,17 @@ GEX_louvain <- function(
       reduction = reduction, 
       dims = c(1:analyses$harmonyRNA_dims)
     ) %>%
-    FindClusters(resolution = RESOLUTION)
+    FindClusters(resolution = resolution)
   
-  
-  CellInfo <- SeuratObj@meta.data
-  # Rename Clusters
-  cluster_count <- length(
-    levels(as.factor(SeuratObj@meta.data$seurat_clusters))
-  )
-  for(j in 1 : cluster_count){
-    if (j < 10){
-      CellInfo$ClusterRNA[CellInfo$seurat_clusters == j - 1] <- 
-        paste0(cluster_prefix, "0", j)
-    }
-    else {
-      CellInfo$ClusterRNA[CellInfo$seurat_clusters == j - 1] <- 
-        paste0(cluster_prefix, j)
-    }
-  }
-  SeuratObj@meta.data <- CellInfo
-  Idents(SeuratObj) <- CellInfo$ClusterRNA
-  
-  # Get number of cells per cluster and per Sample
-  write.csv(
-    as.matrix(table(SeuratObj@meta.data$ClusterRNA, SeuratObj@meta.data$Sample)),
-    file = paste0(
-      OutputDirectory, ObjName, Subset, 
-      " number of cells per cluster and sample.csv"
-    )
-  )
   return (SeuratObj)
 }
 
+
+}
+
+
+###################### STANDARD VIZ FUNCTIONS ###################
+{
 ################ FIND CLUSTER BIOMARKERS (GEX) ################
 GEX_cluster_markers <- function(SeuratObj) {
   DefaultAssay(SeuratObj) <- "RNA"
@@ -704,6 +979,5 @@ GEX_cluster_markers <- function(SeuratObj) {
     only.pos = TRUE
   )
   return (markers)
-}
-
+  }
 }

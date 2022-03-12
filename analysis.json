@@ -1,26 +1,34 @@
 {
-	"pcaADT_dims": 12,
-	"harmonyRNA_dims": 12,
+	"pcaADT_dims": 16,
+	"harmonyRNA_dims": 16,
 	"viz_assay": "RNA",
 	"viz_clustering": "RNA",
 	"clustifyr_assay": "RNApreSCT",
+	"singler_assay": "RNApreSCT",
+	"projecTILs_assay": "RNApreSCT",
+	"which_assignment": "projecTILs",
+	"cluster_prefix": "TC",
+	"cluster_to_assignment": {
+		"05" : "NK T"
+	},
 	"denovo_lineage": "T",
 	"denovo": true,
 	"denovo_superset": "AllPBMC",
 	"denovo_superset_resolution": 0.3,
-	"denovo_subset": ["CD4 T", "NK", "CD8 T"],
-	"denovo_pcaGEX_dims": 12,
+	"denovo_subset": ["CD4 T", "NK", "CD8 T", "NK T"],
+	"denovo_pcaGEX_dims": 16,
 	"denovo_run_harmony": true,
 	"T_lineage_markers": {
-		"All lineages": ["Ifng", "Il17a", "LAG3"],
-		"All T": ["Cd3e", "Cd3g", "Ctla4", "GNLY"],
-		"NK": ["Nkg7", "Klrd1", "CST7", "Gzma", "Gzmb", "Itgam", "KRLB1", "GNLY"],
+		"All lineages": ["Ifng"],
+		"Exhaustion": ["LAG3", "PDCD1", "TIGIT", "Ctla4"],
+		"All T": ["Cd3e", "Cd3g"],
+		"NK": ["Nkg7", "Klrd1", "CST7", "Gzma", "Gzmb", "Itgam", "GNLY"],
 		"CD8+": ["Cd8a", "Cd8B", "Gzma", "Gzmb", "GZMH", "S100B"],
-		"CD4+": ["Cd4", "IL7R", "Il17a", "ITM2A", "TXNIP", "AES"],
+		"CD4+": ["Cd4", "IL7R", "ITM2A", "TXNIP"],
 		"Treg": ["Tigit", "Ctla4", "Foxp3", "Il2ra"],
 		"Memory": ["Il2ra", "S100a4"],
 		"Naive": ["Ccr7", "Tcf7"],
-		"Memory CD4+": ["CD4", "ADCY2", "PTGDR2", "CD200R1"],
+		"Memory CD4+": ["CD4", "PTGDR2", "CD200R1"],
 		"Naive CD4+": ["CD4", "CDHR3", "DICER1-AS1", "RAD9A"]
 	}
 }

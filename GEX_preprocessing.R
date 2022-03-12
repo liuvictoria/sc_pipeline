@@ -241,6 +241,25 @@ SeuratObj <- AddMetaData(
 )
 
 
+# add categories for ribosomal expression (for dimplot)
+percentage_to_category <- function(percentage) {
+  if (percentage < 0.1) {
+    return ("10 percent or less")
+  } else if (0.1 <= percentage & percentage < 0.2) {
+    return ("10 to 20 percent")
+  } else if (0.2 <= percentage & percentage < 0.3) {
+    return ("20 to 30 percent")
+  } else if (0.3 <= percentage & percentage < 0.4) {
+    return ("30 to 40 percent")
+  } else {
+    return ("40 percent or more")
+  }
+}
+
+SeuratObj$ribo_category <- map_chr(
+  SeuratObj$ribo_ratio, percentage_to_category
+)
+
 # plot
 P1 <- plot_bargraph (
   seurat_object = SeuratObj, aesX = "Sample", fill = "Sample",
@@ -278,37 +297,50 @@ x4 <- plot_densitygraph (
   color_by = "Sample", scale_x_log10 = TRUE
 )
 
+x5 <- plot_densitygraph (
+  seurat_object = SeuratObj, aesX = "ribo_ratio", fill = "Sample",
+  color_by = "Sample",  xintercept = config$ribo_ratio
+)
+
+
 XX <- grid_arrange_shared_legend(
   x1 + theme_min(), 
   x2 + theme_min(), 
   x3 + theme_min(), 
   x4 + theme_min(), 
+  x5 + theme_min(),
   position = "right", 
-  ncol = 2, nrow = 2
+  ncol = 2, nrow = 3
 )
 
 #violin plots
 X <- VlnPlot(
   SeuratObj, 
-  features = c("nFeature_RNA", "nCount_RNA", "mito_ratio"), 
-  ncol = 3, pt.size = 0, 
+  features = c("nFeature_RNA", "nCount_RNA", "mito_ratio", "ribo_ratio"), 
+  ncol = 4, pt.size = 0, 
   cols = get_colors(seurat_object = SeuratObj, color_by = "Sample"), 
   group.by = "Sample"
 ) +
   RotatedAxis()
-x5 = ggarrange(
+
+
+
+
+
+x6 = ggarrange(
   X[[1]] + theme_min() + NoLegend() + RotatedAxis(), 
   X[[2]] + theme_min() + NoLegend() + RotatedAxis(), 
   X[[3]] + theme_min() + NoLegend() + RotatedAxis(), 
-  nrow = 1
+  X[[4]] + theme_min() + NoLegend() + RotatedAxis(), 
+  nrow = 2
 )
 
 pdf(paste0(
   QCDirectory, ObjName, Subset, 
   " GEX feature and count.pdf"
-), width = 12, height = 10, family = FONT_FAMILY
+), width = 12, height = 16, family = FONT_FAMILY
 )
-grid.arrange(XX, x5, heights = c(0.8, 0.5))
+grid.arrange(XX, x6, heights = c(0.8, 0.5))
 dev.off()
 
 
@@ -389,7 +421,13 @@ dev.off()
 ######## LOUVAIN CLUSTERING (GEX) ########
 analyses <- fromJSON(file = here("analysis.json"))
 
-GEX_louvain(SeuratObj, reduction = "harmonyRNA", cluster_prefix = "C")
+for (resolution in config$RESOLUTIONS) {
+  SeuratObj <- GEX_louvain(
+    SeuratObj, resolution = resolution, reduction = "harmonyRNA"
+  )
+}
+# no default resolution!
+SeuratObj$seurat_clusters <- NULL
 
 
 ######## RUN UMAP (GEX) ########
@@ -401,34 +439,6 @@ SeuratObj <- RunUMAP(
   reduction.key = "umapRNA_"
 )
 
-################ FIND CLUSTER BIOMARKERS (GEX) ################
-# set default assay and identity
-markers <- GEX_cluster_markers(SeuratObj)
-# save, because it takes a little time to calculate
-write.csv(
-  markers, 
-  paste0(
-    OutputDirectory, ObjName, Subset, 
-    " RNA cluster markers (by RNA)", "res", RESOLUTION, ".csv"
-  )
-)
-
-########## SAVE LOUPE PROJECTIONS ##########
-write.csv(
-  Embeddings(SeuratObj, "umapRNA"), 
-  paste0(LoupeDirectory, ObjName, Subset, "_umapRNA.csv")
-)
-
-# sample and Seurat cluster by cell barcode
-write.csv(
-  select(SeuratObj@meta.data, ClusterRNA), 
-  paste0(LoupeDirectory, ObjName, Subset, "_clusters.csv")
-)
-
-write.csv(
-  select(SeuratObj@meta.data, Sample), 
-  paste0(LoupeDirectory, ObjName, Subset, "_samples.csv")
-)
 
 
 ############## SAVE SEURAT AND SESSION INFO, LOOSE ENDS ################
@@ -436,7 +446,7 @@ saveRDS(
   SeuratObj, 
   file = paste0(
     RobjDirectory, ObjName, Subset, 
-    "_res", config$RESOLUTION, ".rds"
+    "_resAll.rds"
     )
 )
 

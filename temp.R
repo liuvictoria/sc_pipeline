@@ -20,34 +20,28 @@ SeuratObj <- readRDS(RDS_filename)
 # if this is a denovo object, it may contain type info
 # inherited from its superset parent
 if (analyses$denovo) {
-  SeuratObj$r <- NULL
   SeuratObj$type <- NULL
+  SeuratObj$r <- NULL
 }
 
-# loads Clusterspecificgenes
-Clusterspecificgenes <- analyses[[
-  paste0(analyses[["denovo_lineage"]], "_lineage_markers")
-]]
-
-#
 
 ############### ADD CLUSTER METADATA  #################
 CellInfo <- SeuratObj@meta.data
 # Rename Clusters
 cluster_count <- length(levels(as.factor(
   SeuratObj[[paste0("RNA_snn_res.", RESOLUTION)]][, 1]
-  )))
+)))
 
 for(j in 1 : cluster_count){
   if (j < 10){
     CellInfo$ClusterRNA[
       CellInfo[[paste0("RNA_snn_res.", RESOLUTION)]] == j - 1
-      ] <- paste0(analyses$cluster_prefix, "0", j)
+    ] <- paste0(analyses$cluster_prefix, "0", j)
   }
   else {
     CellInfo$ClusterRNA[
       CellInfo[[paste0("RNA_snn_res.", RESOLUTION)]] == j - 1
-      ] <- paste0(analyses$cluster_prefix, j)
+    ] <- paste0(analyses$cluster_prefix, j)
   }
 }
 SeuratObj@meta.data <- CellInfo
@@ -59,7 +53,7 @@ for (metadata_col in colnames(SeuratObj@meta.data)) {
   if (
     grepl("RNA_snn_res.", metadata_col, fixed = TRUE) 
     & !grepl(RESOLUTION, metadata_col, fixed = TRUE)
-    ) {
+  ) {
     print (paste0("removing ", metadata_col, " from metadata"))
     SeuratObj[[metadata_col]] <- NULL
   }
@@ -80,8 +74,9 @@ write.csv(
   Embeddings(SeuratObj, paste0("umap", analyses$viz_clustering)), 
   paste0(
     LoupeDirectory, ObjName, Subset, "_umap", analyses$viz_clustering, ".csv"
-    )
+  )
 )
+
 
 write.csv(
   select(SeuratObj@meta.data, Sample), 
@@ -254,20 +249,7 @@ dev.off()
 
 
 ################# (CUSTOM) CELL POPULATION: CLUSTIFYR ###################
-# determine which reference matrix / gene list to use
 REF_MATRIX = cbmc_ref
-
-refSeuratObj <- readRDS(
-  paste0(
-    RobjDir,
-    "GBMAtlas/", 
-    "TcellClusters-7-22-21-goodwithoutcluster6 new patient names.rds"
-  )
-)
-REF_MATRIX <- seurat_ref(
-  seurat_object = refSeuratObj,       
-  cluster_col = "Assignment"   
-)
 
 # clustify using 
 correlation_matrix <- clustify(
@@ -275,9 +257,9 @@ correlation_matrix <- clustify(
   metadata = SeuratObj@meta.data,
   cluster_col = paste0("Cluster", analyses$viz_clustering), 
   ref_mat = REF_MATRIX,
-  query_genes = FindVariableFeatures(
-      SeuratObj, assay = "RNApreSCT"
-    )[["RNApreSCT"]]@var.features
+  # query_genes = FindVariableFeatures(
+  #     SeuratObj, assay = "RNApreSCT"
+  #   )[["RNApreSCT"]]@var.features[1:500]
 )
 
 # predicted type with correlation coefficients
@@ -308,61 +290,15 @@ SeuratObj@meta.data <- call_to_metadata(
   cluster_col = "ClusterRNA"
 )
 
-SeuratObj$clustifyr <- SeuratObj$type
+SeuratObj$Assignment <- SeuratObj$type
 SeuratObj$type <- NULL
 
 
-
-################# (CUSTOM) CELL POPULATIONS: DOTPLOTS ###################
-dotgraphs <- list()
-for (cluster_name in names(Clusterspecificgenes)) {
-  cluster_genes <- Clusterspecificgenes[[cluster_name]]
-  D1 <- plot_dotgraph(
-    seurat_object = SeuratObj,
-    group_by = paste0("Cluster", analyses$viz_clustering),
-    features = cluster_genes, title = cluster_name
-  )
-  dotgraphs[[cluster_name]] <- D1
-}
-
-plots <- ggarrange(plots = dotgraphs, nrow = length(Clusterspecificgenes))
-
-
-pdf(paste0(
-  dotDirectory, "dotplot ", ObjName, Subset,
-  "by predefined Cluster.pdf"
-), width = 10, height = 50, family = FONT_FAMILY
-)
-print(plots)
-dev.off()
-
-
-
-D2 <- plot_dotgraph(
-  seurat_object = SeuratObj, 
-  group_by = paste0("Cluster", analyses$viz_clustering),
-  features = unique(get_top_cluster_markers(markers, 5)$gene),
-  title = "Top 5 genes by cluster"
-)
-
-
-pdf(paste0(
-  dotDirectory, "dotplot ", ObjName, Subset, "top 5 genes by Cluster.pdf"
-), width = 16, height = 5
-)
-D2
-dev.off()
-
 ################# (CUSTOM) CELL POPULATIONS: ASSIGNMENT ###############
-SeuratObj$Assignment <- SeuratObj[[analyses$which_assignment]]
-for (new_assignment in names(analyses$cluster_to_assignment)) {
-  cluster = paste0(analyses$cluster_prefix, new_assignment)
-  SeuratObj$Assignment[
-    which(str_detect(
-      SeuratObj[[paste0("Cluster", analyses$viz_clustering)]][, 1], cluster
-      ))
-    ] <- analyses$cluster_to_assignment[[new_assignment]]
-}
+
+
+## MANUAL (i.e. when clustifyr is not sufficient)
+## NEEDS A COMPLETE REVISION
 
 
 # add loupe projection
@@ -497,41 +433,6 @@ pdf(paste0(
 )
 U5
 dev.off()
-
-
-########### PREDEFINED CLUSTER FEATURE PLOTS #############
-# loop each assignment
-for (cluster_name in names(Clusterspecificgenes)[1:1]) {
-  predefined_cluster_plots <- list()
-  cluster_genes <- Clusterspecificgenes[[cluster_name]]
-  # loop each marker gene in assignment
-  for (gene in cluster_genes){
-    print(gene)
-    F1 <- plot_featureplot (
-      seurat_object = SeuratObj, 
-      feature_gene = gene, 
-      split_by = NULL,
-      reduction = paste0("umap", analyses$viz_clustering)
-    )
-    predefined_cluster_plots[[gene]] <- F1[[2]]
-  }
-
-
-  plots <- ggpubr::ggarrange(
-    plotlist = predefined_cluster_plots,
-    ncol = 2,
-    nrow = length(cluster_genes) %/% 2 + length(cluster_genes) %% 2
-  )  
-  
-  pdf(paste0(
-    featuremapDirectory, cluster_name,
-    " featuremap ", ObjName, " ", Subset, ".pdf"
-  ), width = 26, height = ceiling(length(cluster_genes) / 2) * 10
-  )
-  print(plots)
-  dev.off()
-  
-}
 
 
 ######### RIBO RATIO QC ##########
@@ -685,5 +586,5 @@ saveRDS(
   file = paste0(
     RobjDirectory, ObjName, Subset, 
     "_res", RESOLUTION, ".rds"
-    )
+  )
 )
