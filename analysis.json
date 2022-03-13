@@ -1,16 +1,19 @@
 {
 	"pcaADT_dims": 16,
 	"harmonyRNA_dims": 16,
+
 	"viz_assay": "RNA",
 	"viz_clustering": "RNA",
+
 	"clustifyr_assay": "RNApreSCT",
-	"singler_assay": "RNApreSCT",
+	"SingleR_assay": "RNApreSCT",
 	"projecTILs_assay": "RNApreSCT",
 	"which_assignment": "projecTILs",
+
 	"cluster_prefix": "TC",
 	"cluster_to_assignment": {
-		"05" : "NK T"
 	},
+
 	"denovo_lineage": "T",
 	"denovo": true,
 	"denovo_superset": "AllPBMC",
@@ -18,6 +21,7 @@
 	"denovo_subset": ["CD4 T", "NK", "CD8 T", "NK T"],
 	"denovo_pcaGEX_dims": 16,
 	"denovo_run_harmony": true,
+
 	"T_lineage_markers": {
 		"All lineages": ["Ifng"],
 		"Exhaustion": ["LAG3", "PDCD1", "TIGIT", "Ctla4"],

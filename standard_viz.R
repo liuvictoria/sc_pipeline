@@ -1,4 +1,4 @@
-################# LOAD UTILS  ##############
+################# LOAD UTILS ##############
 source("~/Box/Yun lab projects/victoria_liu/matching_patients/R_Code/utils.R")
 
 # laod visualizing parameters
@@ -19,6 +19,7 @@ SeuratObj <- readRDS(RDS_filename)
 
 # if this is a denovo object, it may contain type info
 # inherited from its superset parent
+# remove, so that clustifyr has space to add new info, when called
 if (analyses$denovo) {
   SeuratObj$r <- NULL
   SeuratObj$type <- NULL
@@ -28,8 +29,6 @@ if (analyses$denovo) {
 Clusterspecificgenes <- analyses[[
   paste0(analyses[["denovo_lineage"]], "_lineage_markers")
 ]]
-
-#
 
 ############### ADD CLUSTER METADATA  #################
 CellInfo <- SeuratObj@meta.data
@@ -84,26 +83,29 @@ write.csv(
 )
 
 write.csv(
-  select(SeuratObj@meta.data, Sample), 
+  dplyr::select(SeuratObj@meta.data, Sample), 
   paste0(LoupeDirectory, ObjName, Subset, "_samples.csv")
 )
 
 write.csv(
-  select(SeuratObj@meta.data, ClusterRNA), 
+  dplyr::select(SeuratObj@meta.data, ClusterRNA), 
   paste0(LoupeDirectory, ObjName, Subset, "_clusters.csv")
 )
 
 ############## FIND CLUSTER BIOMARKERS (GEX) ################
-# set default assay and identity
-markers <- GEX_cluster_markers(SeuratObj)
-# save, because it takes a little time to calculate
-write.csv(
-  markers, 
-  paste0(
-    OutputDirectory, ObjName, Subset, 
-    " RNA cluster markers (by RNA)", "res", RESOLUTION, ".csv"
-  )
+markers_filename <- paste0(
+  OutputDirectory, ObjName, Subset, 
+  " RNA cluster markers (by RNA)", "res", RESOLUTION, ".csv"
 )
+if (file.exists(markers_filename)) {
+  markers <- read.csv(markers_filename)
+} else {
+  # set default assay and identity
+  markers <- GEX_cluster_markers(SeuratObj)
+  # save, because it takes a little time to calculate
+  write.csv(markers, markers_filename)
+}
+
 
 ############### CLUSTER / SAMPLE HEATMAP ##################
 
@@ -165,7 +167,7 @@ pdf(paste0(
   "res", RESOLUTION, 
   "_percent of cells per sample and ", analyses$viz_clustering,
   " Cluster barplot.pdf"
-), width = 6, height = 5.5, family = FONT_FAMILY
+), width = 8, height = 5.5, family = FONT_FAMILY
 )
 P3
 dev.off()
@@ -183,7 +185,7 @@ pdf(paste0(
   densityplotDirectory, ObjName, Subset, 
   "res", RESOLUTION, "_number of cells per ", analyses$viz_clustering,
   " Cluster and sample barplot.pdf"
-), width = 6, height = 5.5, family = FONT_FAMILY
+), width = 8, height = 5.5, family = FONT_FAMILY
 )
 P4
 dev.off()
@@ -225,7 +227,7 @@ pdf(paste0(
   UMAPDirectory, ObjName, Subset,
   "_res", RESOLUTION, 
   "_Samples_UMAP.pdf"
-), width = 5.5, height = 6, family = FONT_FAMILY
+), width = 8, height = 7, family = FONT_FAMILY
 )
 U2
 dev.off()
@@ -253,65 +255,67 @@ U3
 dev.off()
 
 
-################# (CUSTOM) CELL POPULATION: CLUSTIFYR ###################
-# determine which reference matrix / gene list to use
-REF_MATRIX = cbmc_ref
-
-refSeuratObj <- readRDS(
-  paste0(
-    RobjDir,
-    "GBMAtlas/", 
-    "TcellClusters-7-22-21-goodwithoutcluster6 new patient names.rds"
-  )
-)
-REF_MATRIX <- seurat_ref(
-  seurat_object = refSeuratObj,       
-  cluster_col = "Assignment"   
-)
-
-# clustify using 
-correlation_matrix <- clustify(
-  input = SeuratObj[[analyses$clustifyr_assay]]@data, 
-  metadata = SeuratObj@meta.data,
-  cluster_col = paste0("Cluster", analyses$viz_clustering), 
-  ref_mat = REF_MATRIX,
-  query_genes = FindVariableFeatures(
-      SeuratObj, assay = "RNApreSCT"
-    )[["RNApreSCT"]]@var.features
-)
-
-# predicted type with correlation coefficients
-correlation_coefficients <- cor_to_call(
-  cor_mat = correlation_matrix,
-  cluster_col = paste0("Cluster", analyses$viz_clustering)
-)
-
-# plot heatmap
-pdf(paste0(
-  heatDirectory, "heatmap", ObjName, Subset, 
-  "_res", RESOLUTION, "_cellIdentities_", 
-  analyses$viz_clustering, "Cluster.pdf"
-), width = 7, height = 6
-)
-heatmap.2(
-  correlation_matrix, 
-  col=viridis, trace = "none", 
-  dendrogram = "none", 
-  offsetRow= -29, margins = c(8, 5)
-)
-dev.off()
-
-# add metadata to SeuratObj
-SeuratObj@meta.data <- call_to_metadata(
-  res = correlation_coefficients, 
-  metadata = SeuratObj@meta.data,
-  cluster_col = "ClusterRNA"
-)
-
-SeuratObj$clustifyr <- SeuratObj$type
-SeuratObj$type <- NULL
-
-
+# ################# (CUSTOM) CELL POPULATION: CLUSTIFYR ###################
+# # determine which reference matrix / gene list to use
+# REF_MATRIX = cbmc_ref
+# 
+# refSeuratObj <- readRDS(
+#   paste0(
+#     RobjDir,
+#     "GBMAtlas/", 
+#     "TcellClusters-7-22-21-goodwithoutcluster6 new patient names.rds"
+#   )
+# )
+# REF_MATRIX <- seurat_ref(
+#   seurat_object = refSeuratObj,       
+#   cluster_col = "Assignment"   
+# )
+# 
+# # clustify using 
+# correlation_matrix <- clustify(
+#   input = SeuratObj[[analyses$clustifyr_assay]]@data, 
+#   metadata = SeuratObj@meta.data,
+#   cluster_col = paste0("Cluster", analyses$viz_clustering), 
+#   ref_mat = REF_MATRIX,
+#   query_genes = FindVariableFeatures(
+#       SeuratObj, assay = "RNApreSCT"
+#     )[["RNApreSCT"]]@var.features
+# )
+# 
+# # predicted type with correlation coefficients
+# correlation_coefficients <- cor_to_call(
+#   cor_mat = correlation_matrix,
+#   cluster_col = paste0("Cluster", analyses$viz_clustering)
+# )
+# 
+# # plot heatmap
+# pdf(paste0(
+#   heatDirectory, "heatmap", ObjName, Subset, 
+#   "_res", RESOLUTION, "_cellIdentities_", 
+#   analyses$viz_clustering, "Cluster.pdf"
+# ), width = 7, height = 6
+# )
+# heatmap.2(
+#   correlation_matrix, 
+#   col=viridis, trace = "none", 
+#   dendrogram = "none", 
+#   offsetRow= -29, margins = c(8, 5)
+# )
+# dev.off()
+# 
+# # add metadata to SeuratObj
+# SeuratObj@meta.data <- call_to_metadata(
+#   res = correlation_coefficients, 
+#   metadata = SeuratObj@meta.data,
+#   cluster_col = "ClusterRNA"
+# )
+# 
+# SeuratObj$clustifyr <- SeuratObj$type
+# SeuratObj$clustifyr_r <- SeuratObj$r
+# SeuratObj$type <- NULL
+# SeuratObj$r <- NULL
+# 
+# 
 
 ################# (CUSTOM) CELL POPULATIONS: DOTPLOTS ###################
 dotgraphs <- list()
@@ -331,9 +335,9 @@ plots <- ggarrange(plots = dotgraphs, nrow = length(Clusterspecificgenes))
 pdf(paste0(
   dotDirectory, "dotplot ", ObjName, Subset,
   "by predefined Cluster.pdf"
-), width = 10, height = 50, family = FONT_FAMILY
+), width = 10, height = 56, family = FONT_FAMILY
 )
-print(plots)
+plots
 dev.off()
 
 
@@ -348,13 +352,20 @@ D2 <- plot_dotgraph(
 
 pdf(paste0(
   dotDirectory, "dotplot ", ObjName, Subset, "top 5 genes by Cluster.pdf"
-), width = 16, height = 5
+), width = 22, height = 8
 )
 D2
 dev.off()
 
 ################# (CUSTOM) CELL POPULATIONS: ASSIGNMENT ###############
-SeuratObj$Assignment <- SeuratObj[[analyses$which_assignment]]
+if (
+  ! is.na(analyses$which_assignment) & 
+  analyses$which_assignment %in% colnames(SeuratObj@meta.data)
+) {
+  SeuratObj$Assignment <- SeuratObj[[analyses$which_assignment]]
+}
+
+# for manual hand correction
 for (new_assignment in names(analyses$cluster_to_assignment)) {
   cluster = paste0(analyses$cluster_prefix, new_assignment)
   SeuratObj$Assignment[
@@ -367,21 +378,26 @@ for (new_assignment in names(analyses$cluster_to_assignment)) {
 
 # add loupe projection
 write.csv(
-  select(SeuratObj@meta.data, Assignment), 
-  paste0(LoupeDirectory, ObjName, Subset, "_assignments.csv")
+  dplyr::select(SeuratObj@meta.data, Assignment), 
+  paste0(
+    LoupeDirectory, ObjName, Subset, 
+    "_assignments (", analyses$which_assignment, ") .csv")
 )
 
 ################# ASSIGNMENT BARGRAPHS ###################
 P5 <- plot_bargraph (
   seurat_object = SeuratObj, aesX = "Sample", fill = "Assignment",
   y_label = "Composition (Number of cells)", x_label = NULL,
-  y_lower_limit = 0, y_break = 1000,
+  y_lower_limit = 0, y_break = 1000, 
+  title = paste0(analyses$which_assignment, " Assignment")
 )
 
 pdf(paste0(
   densityplotDirectory, ObjName, Subset, 
   "res", RESOLUTION,
-  "_number of cells per sample and Assignment barplot.pdf"
+  "_number of cells per sample and Assignment (", 
+  analyses$which_assignment,
+  ") barplot.pdf"
 ), width = 6, height = 5.5, family = FONT_FAMILY
 )
 P5
@@ -394,29 +410,34 @@ P6 <- plot_bargraph (
   y_label = "Composition (percentage of cells)", x_label = NULL, 
   y_lower_limit = 0, y_break = 0.2,
   position = "fill",
-  plot_margin = unit(c(0.2, 0.5, 0.2, 0.5), "cm")
+  plot_margin = unit(c(0.2, 0.5, 0.2, 0.5), "cm"),
+  title = paste0(analyses$which_assignment, " Assignment")
 )
 pdf(paste0(
   densityplotDirectory, ObjName, Subset, 
   "res", RESOLUTION, 
-  "percent of cells per sample and Assignment barplot.pdf"
+  "percent of cells per sample and Assignment (", 
+  analyses$which_assignment,
+  ") barplot.pdf"
 ), width = 6, height = 5.5, family = FONT_FAMILY
 )
 P6
 dev.off()
 
 
-
 P7 <- plot_bargraph (
   seurat_object = SeuratObj, aesX = "Assignment", fill = "Sample",
   y_label = "Composition (Number of cells)", x_label = NULL, 
-  y_lower_limit = 0, y_break = 1000
+  y_lower_limit = 0, y_break = 1000,
+  title = paste0(analyses$which_assignment, " Assignment")
 )
 
 pdf(paste0(
   densityplotDirectory, ObjName, Subset,
   "res", RESOLUTION, 
-  "_percentage of cells per major population and Sample barplot.pdf"
+  "_percentage of cells per major population and Sample (", 
+  analyses$which_assignment,
+  ") barplot.pdf"
 ), width = 7, height = 5.5, family = FONT_FAMILY
 )
 P7
@@ -425,22 +446,31 @@ dev.off()
 P8 <- plot_bargraph (
   seurat_object = SeuratObj, aesX = "Sample", fill = "Assignment",
   y_label = "Composition (percentage of cells)", x_label = NULL,
-  y_lower_limit = 0, y_break = 1000, position = "fill"
+  y_lower_limit = 0, y_break = 1000, position = "fill",
+  title = paste0(analyses$which_assignment, " Assignment")
 )
 
 pdf(paste0(
   densityplotDirectory, ObjName, Subset, 
   "res", RESOLUTION,
-  "_percentage of cells per sample and Assignment barplot.pdf"
+  "_percentage of cells per sample and Assignment (", 
+  analyses$which_assignment,
+  ") barplot.pdf"
 ), width = 6, height = 5.5, family = FONT_FAMILY
 )
 P8
 dev.off()
 
+
+
+
+# multiple
 plots = ggarrange(P2, P5, P8, P3, P4, P6, P7, ncol = 2)
 pdf(paste0(
   densityplotDirectory, ObjName, Subset, 
-  "res", RESOLUTION, "_all barplots.pdf"
+  "res", RESOLUTION, "_all barplots (Assignment: ", 
+  analyses$which_assignment,
+  ").pdf"
 ), width = 18, height = 22, family = FONT_FAMILY
 )
 print(plots)
@@ -451,38 +481,31 @@ dev.off()
 U4 <- plot_umap(
   seurat_object = SeuratObj, group_by = "Assignment",
   reduction = paste0("umap", analyses$viz_clustering),
-  title = "Assignment", xlab = "UMAP1", ylab = "UMAP2",
+  title = paste0(analyses$which_assignment, " Assignment"), 
+  xlab = "UMAP1", ylab = "UMAP2",
   legend_position = "bottom",
   ncol_guide = 4,
-  label_clusters = TRUE
+  label_clusters = TRUE,
+  repel_labels = TRUE, label_size = 3
 )
 
 pdf(paste0(
   UMAPDirectory, ObjName, Subset, 
   "_res", RESOLUTION, 
   "_", analyses$viz_clustering,
-  "Clusters_Assignment UMAP.pdf"
-), width = 5.5, height = 6, family = FONT_FAMILY
+  "Clusters_Assignment (", 
+  analyses$which_assignment,
+  ") UMAP.pdf"
+), width = 8, height = 6, family = FONT_FAMILY
 )
 U4
 dev.off()
 
-plots2 <- ggarrange(U1, U2, U4, ncol = 3)
-
-pdf(paste0(
-  UMAPDirectory, ObjName, Subset, 
-  "_res", RESOLUTION, "_all UMAPs.pdf"
-), width = 15, height = 6, family = FONT_FAMILY
-)
-print(plots2)
-dev.off()
-
-
-
 U5 <- plot_umap(
   seurat_object = SeuratObj, group_by = "Assignment",
   reduction = paste0("umap", analyses$viz_clustering),
-  title = "Assignment", xlab = "UMAP1", ylab = "UMAP2",
+  title = paste0(analyses$which_assignment, " Assignment"),
+  xlab = "UMAP1", ylab = "UMAP2",
   legend_position = "bottom",
   title_font_size = 16, x_font_size = 16, y_font_size = 16, 
   pt_size = 0.2, split_by = "Sample", ncol_dimplot = 2
@@ -492,16 +515,35 @@ pdf(paste0(
   UMAPDirectory, ObjName, Subset, 
   "_res", RESOLUTION, 
   "_", analyses$viz_clustering,
-  "Clusters_Assignment UMAP Iteration by sample.pdf"
+  "Clusters_Assignment (", 
+  analyses$which_assignment,
+  ") UMAP Iteration by sample.pdf"
 ), width = 12, height = 12, family = FONT_FAMILY
 )
 U5
 dev.off()
 
 
+
+
+# multiple
+plots2 <- ggarrange(U1, U4, U2, ncol = 3)
+
+pdf(paste0(
+  UMAPDirectory, ObjName, Subset, 
+  "_res", RESOLUTION, "(Assignment: ", 
+  analyses$which_assignment,
+  ") all UMAPs.pdf"
+), width = 20, height = 7, family = FONT_FAMILY
+)
+print(plots2)
+dev.off()
+
+
+
 ########### PREDEFINED CLUSTER FEATURE PLOTS #############
 # loop each assignment
-for (cluster_name in names(Clusterspecificgenes)[1:1]) {
+for (cluster_name in names(Clusterspecificgenes)) {
   predefined_cluster_plots <- list()
   cluster_genes <- Clusterspecificgenes[[cluster_name]]
   # loop each marker gene in assignment
@@ -580,7 +622,7 @@ V2 <- VlnPlot(
   ), 
   group.by = "Assignment"
 ) +
-  labs(title = "Assignment")
+  labs(title = paste0("Assignment", analyses$which_assignment))
 
 V3 <- VlnPlot(
   SeuratObj, 
@@ -604,7 +646,8 @@ V_combined <- ggarrange(
 pdf(paste0(
   RiboQCDirectory, ObjName, Subset,
   "_res", RESOLUTION, 
-  "_", analyses$viz_clustering, "clusters_ribo_ratio_violin_all.pdf"
+  "_", "Assignment (", analyses$which_assignment, ") ",
+   analyses$viz_clustering, "clusters_ribo_ratio_violin_all.pdf"
 ), width = 14, height = 6, family = FONT_FAMILY
 )
 V_combined
@@ -627,7 +670,9 @@ x2 <- plot_densitygraph (
   color_by = "Assignment", 
   facet_category = "Assignment",
   xintercept = config$ribo_ratio,
-  title = "Ribosome ratio by Assignment"
+  title = paste0(
+    "Ribosome ratio by Assignment (", analyses$which_assignment,
+  ")")
 )
 
 x3 <- plot_densitygraph (
@@ -650,7 +695,9 @@ pdf(paste0(
   RiboQCDirectory, ObjName, Subset,
   "_res", RESOLUTION, 
   "_", analyses$viz_clustering, 
-  "clusters ribosome ratios split by cluster assignment sample.pdf"
+  "clusters ribosome ratios split by cluster assignment (", 
+  analyses$which_assignment,
+  ") sample.pdf"
 ), width = 20, height = 20, family = FONT_FAMILY
 )
 x_combined
@@ -680,6 +727,7 @@ dev.off()
 
 
 ############## SAVE SEURAT AND SESSION INFO, LOOSE ENDS ################
+head(SeuratObj)
 saveRDS(
   SeuratObj, 
   file = paste0(

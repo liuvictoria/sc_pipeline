@@ -207,7 +207,7 @@ dev.off()
 ################# (CUSTOM) CELL POPULATION: SINGLER ###################
 ref_singler <- celldex::BlueprintEncodeData()
 singler_predictions <-SingleR(
-  test = SeuratObj[[analyses$singler_assay]]@data, 
+  test = SeuratObj[[analyses$SingleR_assay]]@data, 
   ref = ref_singler, 
   labels = ref_singler$label.main
   )
@@ -236,7 +236,7 @@ P2 <- plot_bargraph (
 
 pdf(paste0(
   singleRDirectory, 
-  "ALL_SAMPLES ", analyses$singleR_assay, "assay SingleR", 
+  "ALL_SAMPLES ", analyses$SingleR_assay, "assay SingleR", 
   " percentage of cells per sample and Assignment barplot.pdf"
 ), width = 6, height = 5.5, family = FONT_FAMILY
 )
@@ -247,7 +247,7 @@ dev.off()
 P3 <- plotDeltaDistribution(singler_predictions)
 pdf(paste0(
   singleRDirectory, 
-  "ALL_SAMPLES ", analyses$singleR_assay, "assay SingleR", 
+  "ALL_SAMPLES ", analyses$SingleR_assay, "assay SingleR", 
   " pruning distribution.pdf"
 ), width = 6, height = 5.5, family = FONT_FAMILY
 )
@@ -258,7 +258,7 @@ dev.off()
 P4 <- plotScoreHeatmap(singler_predictions)
 pdf(paste0(
   singleRDirectory, 
-  "ALL_SAMPLES ", analyses$singleR_assay, "assay SingleR", 
+  "ALL_SAMPLES ", analyses$SingleR_assay, "assay SingleR", 
   " score heatmap.pdf"
 ), width = 6, height = 5.5, family = FONT_FAMILY
 )

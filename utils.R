@@ -175,14 +175,16 @@ get_height <- function(category) {
 
 ###### GET NOURPAL COLORS #######
 get_colors <- function(
-  seurat_obj,
+  seurat_object,
   color_by,
   color_reverse = FALSE
 ) {
   colors = Nour_pal("all", reverse = color_reverse)(
-    length(unique(as.vector(as.matrix(seurat_obj[[color_by]]))))
+    length(unique(as.vector(as.matrix(seurat_object[[color_by]]))))
   )
-  names(colors) = sort(unique(as.vector(as.matrix(seurat_obj[[color_by]]))))
+  names(colors) = sort(unique(
+    as.vector(as.matrix(seurat_object[[color_by]]))
+    ))
   return (colors)
 }
 
@@ -629,32 +631,34 @@ plot_dotgraph <- function (
   color_palette_option = "plasma"
 ) {
   features <- case_sensitive_features(seurat_object, features)
+  features <- unlist(unname(features))
+  print(names(features))
   plot_object <- DotPlot(
     seurat_object, group.by = group_by, dot.scale = dot_scale,
     features = features, scale = scale
-  ) + 
-    scale_colour_viridis_c(option = color_palette_option) + 
-    labs(title = title) +
-    ggmin::theme_min() +
-    RotatedAxis() +
-    theme(
-      # CONSTANT EVERYWHERE START
-      panel.grid.major = element_blank(),
-      panel.grid.minor = element_blank(),
-      panel.background = element_blank(),
-      title = element_text(size = 15, face = "bold"),
-      legend.text = element_text(color = "black", size = 13, face = "bold"),
-      legend.title = element_text(color = "black", size = 13, face = "bold"),
-      axis.line = element_line(colour = "black"),
-      axis.text.y = element_text(color = "black", size = 12),
-      # CONSTANT EVERYWHERE END
-      axis.text.x = element_text(
-        color = "black", angle = x_text_angle, hjust = 1, size = 15
-      ),
-      axis.text = element_text(size = 15, face = "bold"),
-      axis.title = element_text(size = 15, face = "bold"),
-      plot.margin = unit(c(0.5, 0.5, 0.2, 0.5), "cm")
-    )
+  ) +
+    scale_colour_viridis_c(option = color_palette_option) +
+  labs(title = title) +
+  ggmin::theme_min() +
+  RotatedAxis() +
+  theme(
+    # CONSTANT EVERYWHERE START
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    title = element_text(size = 15, face = "bold"),
+    legend.text = element_text(color = "black", size = 13, face = "bold"),
+    legend.title = element_text(color = "black", size = 13, face = "bold"),
+    axis.line = element_line(colour = "black"),
+    axis.text.y = element_text(color = "black", size = 12),
+    # CONSTANT EVERYWHERE END
+    axis.text.x = element_text(
+      color = "black", angle = x_text_angle, hjust = 1, size = 15
+    ),
+    axis.text = element_text(size = 15, face = "bold"),
+    axis.title = element_text(size = 15, face = "bold"),
+    plot.margin = unit(c(0.5, 0.5, 0.2, 0.5), "cm")
+  )
   
   return (plot_object)
 }
@@ -673,6 +677,7 @@ plot_featureplot <- function(
     seurat_object,
     c(feature_gene)
   )
+  feature_gene <- unlist(unname(feature_gene))
   if (length(feature_gene) == 0) {
     stop(paste0("could not find gene feature: ", feature_gene))
   } else {
