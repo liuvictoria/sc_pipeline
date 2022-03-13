@@ -4,7 +4,7 @@ source("~/Box/Yun lab projects/victoria_liu/matching_patients/R_Code/utils.R")
 # laod visualizing parameters
 analyses <- fromJSON(file = here("analysis.json"))
 
-#
+
 ############# SUBSET CELLS (GEX) ############
 # this object is fully pre-processed for GEX
 # change the loading info in the config file
@@ -79,6 +79,67 @@ SeuratObj <- RunUMAP(
   reduction.name = "umapRNA",
   reduction.key = "umapRNA_"
 )
+
+################# (CUSTOM) CELL POPULATION: SINGLER ###################
+ref_singler <- celldex::BlueprintEncodeData()
+singler_predictions <-SingleR(
+  test = SeuratObj[[analyses$SingleR_assay]]@data, 
+  ref = ref_singler, 
+  labels = ref_singler$label.main
+)
+
+# add metadata back to Seurat
+SeuratObj$SingleR <- singler_predictions[["pruned.labels"]] 
+
+# cell type frequency table
+write.csv(
+  table(SeuratObj$SingleR), 
+  paste0(
+    singleRDirectory, 
+    analyses$SingleR_assay, "assay SingleR", 
+    " cell type distribution.csv"
+  ), 
+  row.names = FALSE
+)
+
+# plot total distribution
+P2 <- plot_bargraph (
+  seurat_object = SeuratObj, aesX = "Sample", fill = "SingleR",
+  y_label = "Composition (percentage of cells)", x_label = NULL,
+  title = "SingleR T cell assignment, pruned labels",
+  y_lower_limit = 0, y_break = 1000, position = "fill"
+)
+
+pdf(paste0(
+  singleRDirectory, 
+  "ALL_SAMPLES ", analyses$SingleR_assay, "assay SingleR", 
+  " percentage of cells per sample and Assignment barplot.pdf"
+), width = 6, height = 5.5, family = FONT_FAMILY
+)
+print(P2)
+dev.off()
+
+# QC pruning
+P3 <- plotDeltaDistribution(singler_predictions)
+pdf(paste0(
+  singleRDirectory, 
+  "ALL_SAMPLES ", analyses$SingleR_assay, "assay SingleR", 
+  " pruning distribution.pdf"
+), width = 6, height = 5.5, family = FONT_FAMILY
+)
+print(P3)
+dev.off()
+
+# QC heatmap
+P4 <- plotScoreHeatmap(singler_predictions)
+pdf(paste0(
+  singleRDirectory, 
+  "ALL_SAMPLES ", analyses$SingleR_assay, "assay SingleR", 
+  " score heatmap.pdf"
+), width = 6, height = 5.5, family = FONT_FAMILY
+)
+print(P4)
+dev.off()
 
 ################# (CUSTOM) CELL POPULATION: PROJECTILS ###################
 # load murine TIL reference
@@ -204,66 +265,6 @@ print(P1)
 dev.off()
 
 
-################# (CUSTOM) CELL POPULATION: SINGLER ###################
-ref_singler <- celldex::BlueprintEncodeData()
-singler_predictions <-SingleR(
-  test = SeuratObj[[analyses$SingleR_assay]]@data, 
-  ref = ref_singler, 
-  labels = ref_singler$label.main
-  )
-
-# add metadata back to Seurat
-SeuratObj$SingleR <- singler_predictions[["pruned.labels"]] 
-
-# cell type frequency table
-write.csv(
-  table(SeuratObj$SingleR), 
-  paste0(
-    singleRDirectory, 
-    analyses$SingleR_assay, "assay SingleR", 
-    " cell type distribution.csv"
-  ), 
-  row.names = FALSE
-)
-
-# plot total distribution
-P2 <- plot_bargraph (
-  seurat_object = SeuratObj, aesX = "Sample", fill = "SingleR",
-  y_label = "Composition (percentage of cells)", x_label = NULL,
-  title = "SingleR T cell assignment, pruned labels",
-  y_lower_limit = 0, y_break = 1000, position = "fill"
-)
-
-pdf(paste0(
-  singleRDirectory, 
-  "ALL_SAMPLES ", analyses$SingleR_assay, "assay SingleR", 
-  " percentage of cells per sample and Assignment barplot.pdf"
-), width = 6, height = 5.5, family = FONT_FAMILY
-)
-print(P2)
-dev.off()
-
-# QC pruning
-P3 <- plotDeltaDistribution(singler_predictions)
-pdf(paste0(
-  singleRDirectory, 
-  "ALL_SAMPLES ", analyses$SingleR_assay, "assay SingleR", 
-  " pruning distribution.pdf"
-), width = 6, height = 5.5, family = FONT_FAMILY
-)
-print(P3)
-dev.off()
-
-# QC heatmap
-P4 <- plotScoreHeatmap(singler_predictions)
-pdf(paste0(
-  singleRDirectory, 
-  "ALL_SAMPLES ", analyses$SingleR_assay, "assay SingleR", 
-  " score heatmap.pdf"
-), width = 6, height = 5.5, family = FONT_FAMILY
-)
-print(P4)
-dev.off()
 
 ############## SAVE SEURAT AND SESSION INFO, LOOSE ENDS ################
 saveRDS(

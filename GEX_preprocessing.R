@@ -40,7 +40,7 @@ for(i in 1:length(FILES)){
   SeuratObjMYSC$mito_ratio <- PercentageFeatureSet(
     SeuratObjMYSC, pattern = "^MT-"
   )
-  SeuratObjMYSC$mito_ratio <- SeuratObjMYS$mito_ratio / 100
+  SeuratObjMYSC$mito_ratio <- SeuratObjMYSC$mito_ratio / 100
   
   SeuratObjMYSC$ribo_ratio <- PercentageFeatureSet(
     SeuratObjMYSC, pattern = "^RP[LS]"
@@ -148,14 +148,13 @@ for(i in 1:length(FILES)){
     "Doublet status dimplot.pdf"
   ), width = 8, height = 5.5, family = FONT_FAMILY
   )
-  D
+  print(D)
   dev.off()
 
   # save object
   saveRDS(SeuratObjMYSC, file = paste0(RobjDirectory, FILES[i], ".rds"))
   SeuratSamples[[i]] <- SeuratObjMYSC
 }
-
 
 ######## AGGREGATION + QC PLOTS ########
 

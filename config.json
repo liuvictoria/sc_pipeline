@@ -1,15 +1,15 @@
 {
-	"FILES": ["ESC8", "ESC9", "MYSC71", "MYSC95", "MYSC97"],
+	"FILES": ["MYSC70", "MYSC96", "MYSC98"],
 	"count_matrices_dir" : "sample_feature_bc_matrix",
 
 	"Directory": "~/Box/Yun lab projects/victoria_liu/matching_patients",
 	"NourpalDirectory": "~/Box/Yun lab projects/victoria_liu/Nourpal",
 
 	"ObjName": "GEX",
-	"Subset": "TPBMC",
+	"Subset": "AllTumor",
 
 	"RESOLUTIONS": [0.3, 0.5, 0.7, 0.8, 0.9, 1, 1.2],
-	"RESOLUTION": 0.5,
+	"RESOLUTION": 1.2,
 
 	"ADT_PRESENT": {
 		"8" : false,
