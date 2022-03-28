@@ -7,6 +7,13 @@ analyses <- fromJSON(file = here("analysis.json"))
 
 ############# SUBSET CELLS (GEX) ############
 # this object is fully pre-processed for GEX
+SeuratObj_filename <- paste0(
+  RobjDir, analyses$denovo_superset, "/",
+  "GEX", analyses$denovo_superset, 
+  "_res", analyses$denovo_superset_resolution, ".rds"
+)
+
+print(paste0("loading SeuratObj from file: ", SeuratObj_filename))
 # change the loading info in the config file
 SeuratObj <- readRDS(
   paste0(
@@ -15,9 +22,18 @@ SeuratObj <- readRDS(
     "_res", analyses$denovo_superset_resolution, ".rds"
   )
 )
-Idents(SeuratObj) <- "Assignment"
-SeuratObj <- subset(SeuratObj, idents = analyses$denovo_subset)
 
+# subset cells / remove unwanted clusters
+# unwanted clusters can be visually identified in parent UMAPs
+# Idents(SeuratObj) <- "Assignment"
+SeuratObj <- subset(
+  SeuratObj, subset = Assignment == analyses$denovo_subset
+  )
+# Idents(SeuratObj) <- "ClusterRNA"
+for (cluster_remove in analyses$denovo_clusters_remove) {
+  SeuratObj <- subset(
+    SeuratObj, subset = ClusterRNA != cluster_remove)
+}
 
 ######## NORMALIZATION (GEX) ########
 SeuratObj <- GEX_normalization(SeuratObj)
@@ -31,7 +47,7 @@ pdf(paste0(
   " pca.pdf"
 ), width = 12, height = 4.5, family = FONT_FAMILY
 )
-E1
+print(E1)
 dev.off()
 
 
@@ -49,7 +65,7 @@ if (analyses$denovo_run_harmony) {
     " elbow plot after harmony.pdf"
   ), width = 12, height = 4.5, family = FONT_FAMILY
   )
-  E2
+  print(E2)
   dev.off()
 }
 
@@ -66,6 +82,7 @@ for (resolution in config$RESOLUTIONS) {
     SeuratObj, resolution = resolution, reduction = reduction
   )
 }
+
 # no default resolution!
 SeuratObj$seurat_clusters <- NULL
 
@@ -141,20 +158,35 @@ pdf(paste0(
 print(P4)
 dev.off()
 
+
+if (
+  ! is.na(analyses$which_assignment) & 
+  analyses$which_assignment %in% colnames(SeuratObj@meta.data)
+) {
+  SeuratObj$Assignment <- SeuratObj[[analyses$which_assignment]]
+}
+
 ################# (CUSTOM) CELL POPULATION: PROJECTILS ###################
 # load murine TIL reference
 ref_projectils_filename <- paste0(
-  dataDirectory, "projecTILs/processed_mouse2human_reference.rds"
+  dataDirectory, "projecTILs/", analyses$projecTILs_ref,
+  "_processed_mouse2human_reference.rds"
 )
+print(paste0(
+  "trying to read projecTILs reference: ",
+  ref_projectils_filename
+))
 # ideally, it has already been pre-processed from murine to human
 if (file.exists(ref_projectils_filename)) {
   ref_projectils <- readRDS(ref_projectils_filename)
 } else {
+  print("projecTILs reference has not been processed, processing now")
   # we will preprocess from murine to human
   # also includes recomp of umap / pca according to projecTILs spec
   # first read in the original reference
   ref_projectils <- readRDS(paste0(
-    dataDirectory, "projecTILs/ref_TILAtlas_mouse_v1.rds"
+    dataDirectory, "projecTILs/", analyses$projecTILs_ref,
+    "_mouse_atlas.rds"
   ))
   ref_projectils <- projectils_ref_full_translation (
     ref_projectils, SeuratObj
@@ -164,14 +196,14 @@ if (file.exists(ref_projectils_filename)) {
 # plot ref umap
 U_TILs1 <-  plot_umap(
   ref_projectils, group_by = "functional.cluster",
-  title = "projecTILs reference with filtered Seurat genes", 
+  title = "projecTILs reference with filtered Seurat genes",
   xlab = "UMAP_1", ylab = "UMAP2",
-  legend_position = "right", reduction = "umap", 
+  legend_position = "right", reduction = "umap",
   label_clusters = TRUE
 )
 
 pdf(paste0(
-  dataDirectory, "projecTILs/", 
+  dataDirectory, "projecTILs/ref", analyses$projecTILs_ref,
   " projecTILs recalculated with human genes and prcmp_umap UMAP.pdf"
 ), width = 12, height = 7, family = FONT_FAMILY
 )
@@ -185,7 +217,7 @@ DefaultAssay(SeuratObj) <- analyses$projecTILs_assay
 manual_colors <- get_colors(ref_projectils, color_by = "functional.cluster")
 projectils_metadata <- data.frame()
 for (sample_name in unique(SeuratObj$Sample)) {
-  
+  print(sample_name)
   # subset based on sample and assignment
   query.data <- subset(
     SeuratObj, Sample == sample_name
@@ -259,12 +291,17 @@ pdf(paste0(
   projTILDirectory, 
   "ALL_SAMPLES ", analyses$projecTILs_assay, "assay projecTILs", 
   " percentage of cells per sample and Assignment barplot.pdf"
-), width = 6, height = 5.5, family = FONT_FAMILY
+), width = 10, height = 7, family = FONT_FAMILY
 )
 print(P1)
 dev.off()
 
-
+if (
+  ! is.na(analyses$which_assignment) & 
+  analyses$which_assignment %in% colnames(SeuratObj@meta.data)
+) {
+  SeuratObj$Assignment <- SeuratObj[[analyses$which_assignment]]
+}
 
 ############## SAVE SEURAT AND SESSION INFO, LOOSE ENDS ################
 saveRDS(

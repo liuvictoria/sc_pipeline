@@ -9,20 +9,29 @@ source("~/Box/Yun lab projects/victoria_liu/matching_patients/R_Code/utils.R")
 # important metadata: ClusterRNA
 # important assays: RNA
 # for full list, refer to Notion guide
+RDS_filename <- paste0(
+  RobjDirectory, "GEX", Subset, 
+  "_resAll.rds"
+)
+if (! file.exists(RDS_filename)) {
+  print(paste0(RDS_filename, " Seurat obj does not exist"))
+} else {
+  print(paste0("reading Seurat obj: ", RDS_filename))
+}
 SeuratObj <- readRDS(
-  paste0(RobjDirectory, ObjName, Subset, "_GEX", ".rds")
+  RDS_filename
 )
 
 ######## QC PLOTS ########
 
 x5 <- plot_densitygraph (
   seurat_object = SeuratObj, aesX = "nCount_ADT", fill = "Sample",
-  color_by = "Sample", xintercept = 0.8, scale_x_log10 = TRUE
+  color_by = "Sample", scale_x_log10 = TRUE
 )
 
 x6 <- plot_densitygraph (
   seurat_object = SeuratObj, aesX = "nFeature_ADT", fill = "Sample",
-  color_by = "Sample", xintercept = 0.8, scale_x_log10 = TRUE
+  color_by = "Sample"
 )
 
 XX <- grid_arrange_shared_legend(
@@ -58,45 +67,6 @@ dev.off()
 
 
 
-######## NORMALIZATION (ADT) ########
-# Normalize for ADT 
-# not a lot of features, so use all antibody rows
-# scaling happens after CC regression and integration
-DefaultAssay(SeuratObj) <- "ADT"
-SeuratObj <- NormalizeData(
-  SeuratObj, normalization.method = "CLR", margin = 2
-)
-VariableFeatures(SeuratObj) <- rownames(SeuratObj[["ADT"]])
-
-# plot variable features
-top10 <- head(VariableFeatures(SeuratObj), 10)
-plot1 <- VariableFeaturePlot(SeuratObj)
-plot2 <- LabelPoints(plot = plot1, points = top10, size = 3)
-pdf(paste0(
-  QCDirectory, ObjName, Subset, 
-  " ADT variable freatures.pdf"
-), width = 8, height = 5.5, family = FONT_FAMILY
-)
-plot2 + theme_min()
-dev.off()
-
-
-########### CELL CYCLE REGRESSION (ADT) #############
-# cell cycle scoring already previously calculated
-# ADT
-DefaultAssay(SeuratObj) <- "ADT"
-SeuratObj <- ScaleData(
-  SeuratObj,
-  vars.to.regress = c("S.Score", "G2M.Score"),
-  features = rownames(SeuratObj)
-)
-
-# regressing is a really long process, so save for future
-saveRDS(
-  SeuratObj, 
-  file = paste0(RobjDirectory, ObjName, Subset, "_ADT", ".rds")
-)
-
 ########### BATCH INTEGRATION (ADT) ###########
 SeuratObj <- RenameAssays(SeuratObj, ADT = "ADTpreInt")
 DefaultAssay(SeuratObj) <- "ADTpreInt"
@@ -115,6 +85,13 @@ samples_list <- SplitObject(SeuratObj, split.by = config$batch_norm_by) %>%
 features <- SelectIntegrationFeatures(
   object.list = samples_list
 )
+
+samples_list <- lapply(
+  X = samples_list, 
+  FUN = function(x) {
+    x <- ScaleData(x, features = features, verbose = FALSE)
+    x <- RunPCA(x, features = features, verbose = FALSE)
+  })
 
 # find anchor cells (this step stakes a while)
 # use rpca; reference:
@@ -154,39 +131,12 @@ dev.off()
 ######## LOUVAIN CLUSTERING ########
 analyses <- fromJSON(file = here("analysis.json"))
 
-SeuratObj <- SeuratObj %>%
-  FindMultiModalNeighbors(
-    reduction.list = list("harmonyRNA", "pcaADT"), 
-    dims.list = list(
-      1 : analyses$harmonyRNA_dims, 1 : analyses$pcaADT_dims
-    ), 
-    modality.weight.name = "RNA.weight"
-)
-
-CellInfo <- SeuratObj@meta.data
-# Rename Clusters
-cluster_count <- length(
-  levels(as.factor(SeuratObj@meta.data$seurat_clusters))
-)
-for(j in 1 : cluster_count){
-  if (j < 10){
-    CellInfo$ClusterWNN[CellInfo$seurat_clusters == j - 1] <- paste0("WC0", j)
-  }
-  else {
-    CellInfo$ClusterWNN[CellInfo$seurat_clusters == j - 1] <- paste0("WC", j)
-  }
+for (resolution in config$RESOLUTIONS) {
+  SeuratObj <- ADT_louvain(SeuratObj, resolution)
 }
-SeuratObj@meta.data <- CellInfo
-Idents(SeuratObj) <- CellInfo$ClusterWNN
 
-# Get number of cells per cluster and per Sample
-write.csv(
-  as.matrix(table(SeuratObj@meta.data$ClusterWNN, SeuratObj@meta.data$Sample)),
-  file = paste0(
-    OutputDirectory, ObjName, Subset, 
-    " number of cells per cluster and sample.csv"
-  )
-)
+# no default resolution!
+SeuratObj$seurat_clusters <- NULL
 
 ######## RUN UMAP ########
 SeuratObj <- RunUMAP(
@@ -196,59 +146,27 @@ SeuratObj <- RunUMAP(
   reduction.key = "UMAPWNN_"
 )
 
-################ FIND CLUSTER BIOMARKERS ################
 
-Idents(SeuratObj) <- CellInfo$ClusterWNN
-markers1 <- FindAllMarkers(
-  SeuratObj,
-  assay = "RNApreSCT",
-  logfc.threshold = 0.5, 
-  test.use = "wilcox", 
-  only.pos = TRUE
-)
-
-markers2 <- FindAllMarkers(
-  SeuratObj,
-  assay = "ADTpreInt",
-  logfc.threshold = 0.5, 
-  test.use = "wilcox", 
-  only.pos = TRUE
-)
-
-# save, because it takes a little time to calculate
-write.csv(
-  markers1, 
-  paste0(
-    OutputDirectory, ObjName, Subset, 
-    " RNA cluster markers (by WNN)", "res", RESOLUTION, ".csv"
-  )
-)
-
-write.csv(
-  markers2, 
-  paste0(
-    OutputDirectory, ObjName, Subset, 
-    " ADT cluster markers (by WNN)", "res", RESOLUTION, ".csv"
-  )
-)
 
 ############## SAVE SEURAT AND SESSION INFO, LOOSE ENDS ################
 saveRDS(
   SeuratObj, 
-  file = paste0(RobjDirectory, ObjName, Subset, "_ADT", ".rds")
+  file = paste0(
+    RobjDirectory, ObjName, Subset, 
+    "_resAll.rds"
+  )
 )
-
 
 # capture session info, versions, etc.
 writeLines(
   capture.output(sessionInfo()), 
-  paste0(ConfigDirectory, "sessionInfo_ADT.txt")
+  paste0(ConfigDirectory, ObjName, "_", Subset, "_sessionInfo_ADT.txt")
 )
 file.copy(
   from = here("config.json"), 
-  to = paste0(ConfigDirectory, "config_params_ADT.json")
+  to = paste0(ConfigDirectory, ObjName, "_", Subset, "_config_params_ADT.json")
 )
 file.copy(
   from = here("analysis.json"), 
-  to = paste0(ConfigDirectory, "analysis_params_ADT.json")
+  to = paste0(ConfigDirectory, ObjName, "_", Subset, "_analysis_params_ADT.json")
 )

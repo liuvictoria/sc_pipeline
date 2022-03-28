@@ -2,29 +2,44 @@
 	"pcaADT_dims": 16,
 	"harmonyRNA_dims": 16,
 
-	"viz_assay": "RNA",
-	"viz_clustering": "RNA",
+	"markers_assay": "RNA",
+	"viz_clustering": "WNN",
 
 	"clustifyr_assay": "RNApreSCT",
 	"SingleR_assay": "RNApreSCT",
 	"projecTILs_assay": "RNApreSCT",
+	"projecTILs_ref": "TIL",
 	"which_assignment": "clustifyr",
 
-	"cluster_prefix": "C",
+	"cluster_prefix": "WC",
 	"cluster_to_assignment": {
 	},
 
+	"denovo_lineage": "T",
 	"denovo": false,
-	"denovo_lineage": "None",
-	"denovo_superset": "AllTumor",
+	"denovo_superset": "AllPBMC",
 	"denovo_superset_resolution": 0.9,
 	"denovo_subset": ["TCells"],
 	"denovo_pcaGEX_dims": 16,
 	"denovo_run_harmony": true,
 
+	"ADT_markers": {
+		"Exhaustion": ["CD152-(CTLA-4)",	"TIGIT-(VSTM3)"],
+		"T": ["CD8", "CD3", "CD4.1"],
+		"Other": ["CD161"]
+	},
+	"ADT_to_RNA": {
+		"CD152-(CTLA-4)": "CTLA4",
+		"TIGIT-(VSTM3)": "TIGIT",
+		"CD8": "CD8A",
+		"CD3": "CD3E",
+		"CD4.1": "CD4",
+		"CD161": "KLRB1"
+	},
+
 	"T_lineage_markers": {
 		"All lineages": ["Ifng"],
-		"Exhaustion": ["LAG3", "PDCD1", "TIGIT", "Ctla4"],
+		"Exhaustion": ["LAG3", "PDCD1", "TIGIT", "Ctla4",  "CD44", "TNFRSF4", "TNFRSF8"],
 		"All T": ["Cd3e", "Cd3g"],
 		"NK": ["Nkg7", "Klrd1", "CST7", "Gzma", "Gzmb", "Itgam", "GNLY"],
 		"CD8+": ["Cd8a", "Cd8B", "Gzma", "Gzmb", "GZMH", "S100B"],
@@ -35,6 +50,14 @@
 		"Memory CD4+": ["CD4", "PTGDR2", "CD200R1"],
 		"Naive CD4+": ["CD4", "CDHR3", "DICER1-AS1", "RAD9A"]
 	},
+
+	"M_lineage_markers": {
+		"Macrophage": ["Itgam", "Lyz", "cd68"]
+	},
+
 	"None_lineage_markers": {
 	}
+
+
+
 }

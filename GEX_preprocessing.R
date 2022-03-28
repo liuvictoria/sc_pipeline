@@ -1,8 +1,10 @@
 ################# LOAD UTILS  ##############
 source("~/Box/Yun lab projects/victoria_liu/matching_patients/R_Code/utils.R")
-######### QC + Doublet removal ########
 SeuratSamples <- list()
 
+######### QC + Doublet removal ########
+if (!config$aggr_cells) {
+  
 for(i in 1:length(FILES)){
   print(FILES[i])
   # read in GEX (and also ADT, if applicable)
@@ -13,7 +15,7 @@ for(i in 1:length(FILES)){
       FILES[i], "/",
       config$count_matrices_dir, "/"
     )
-  )
+  ) 
   
   # if there is also ADT data
   regexp <- "[[:digit:]]+"
@@ -33,26 +35,6 @@ for(i in 1:length(FILES)){
       MYSC[["Antibody Capture"]][, colnames(x = SeuratObjMYSC)])
   }
   
-  # QC for mitochondrial RNA
-  SeuratObjMYSC$log10GenesPerUMI <- log10(SeuratObjMYSC$nFeature_RNA) / 
-    log10(SeuratObjMYSC$nCount_RNA)
-  
-  SeuratObjMYSC$mito_ratio <- PercentageFeatureSet(
-    SeuratObjMYSC, pattern = "^MT-"
-  )
-  SeuratObjMYSC$mito_ratio <- SeuratObjMYSC$mito_ratio / 100
-  
-  SeuratObjMYSC$ribo_ratio <- PercentageFeatureSet(
-    SeuratObjMYSC, pattern = "^RP[LS]"
-  )
-  SeuratObjMYSC$ribo_ratio <- SeuratObjMYSC$ribo_ratio / 100
-  
-  #filter by removing cells that didn't pass qc
-  SeuratObjMYSC <- subset(
-    SeuratObjMYSC, 
-    subset = nFeature_RNA > config$nFeature_RNA & 
-      mito_ratio < config$mito_ratio
-  )
   # subset ADT, if present
   if (USE_ADT) {  
     SeuratObjMYSC <- subset(
@@ -61,8 +43,17 @@ for(i in 1:length(FILES)){
     )
   }
   
+  # determine doublets, need to change to sce
+  SeuratObjMYSC.sce <- as.SingleCellExperiment(SeuratObjMYSC)
+  sce <- scDblFinder(SeuratObjMYSC.sce)
   
-  #prep work for DoubletFinder
+  # Converting back to Seurat Obj
+  SeuratObjMYSC <- as.Seurat(sce)
+  CellInfo <- SeuratObjMYSC@meta.data
+  Idents(SeuratObjMYSC) <- SeuratObjMYSC$orig.ident
+  
+  
+  # SCT
   if (SCT) {
     SeuratObjMYSC <- RenameAssays(SeuratObjMYSC, RNA = "RNApreSCT")
     SeuratObjMYSC <- SeuratObjMYSC %>%
@@ -80,67 +71,57 @@ for(i in 1:length(FILES)){
   
   #Run PCA (code in utils)
   SeuratObjMYSC <- GEX_pca(SeuratObjMYSC, FILES[i])
-
-  # remove doublets
-  # documentation: https://github.com/chris-mcginnis-ucsf/DoubletFinder
-  # pK Identification (no ground-truth)
-  # if using sctransform, mark sct as TRUE
-  sweep.res.list <- paramSweep_v3(SeuratObjMYSC, PCs = 1:10, sct = SCT)
-  sweep.stats <- summarizeSweep(sweep.res.list, GT = FALSE)
-  bcmvn <- find.pK(sweep.stats)
-
-  # to plot max bcmvn for identifying pK (refer to graph on wiki page)
-  df = as.data.frame(bcmvn)
-  pK_graph = df %>%
-    ggplot(aes( x = ParamID, y = BCmetric)) +
-    geom_point(color = "royalblue") +
-    geom_line(color = "royalblue") +
-    theme_classic() +
-    # plot pK on x-axis
-    geom_vline(xintercept = df$ParamID[df$BCmetric == max(df$BCmetric)])
-
-  pdf(paste0(
-    QCDirectory, FILES[i],
-    " doubletfinder BCmvn distribution.pdf"),
-    width = 8, height = 5.5, family = FONT_FAMILY
+  
+  
+  # QC for mitochondrial RNA
+  SeuratObjMYSC$log10GenesPerUMI <- log10(SeuratObjMYSC$nFeature_RNA) / 
+    log10(SeuratObjMYSC$nCount_RNA)
+  
+  SeuratObjMYSC$percent.mt <- PercentageFeatureSet(
+    SeuratObjMYSC, pattern = "^MT-"
   )
-  print(pK_graph)
-  dev.off()
-
-  # Homotypic Doublet Proportion Estimate
-  # I think $Clusters may be empty / just a placeholder?
-  homotypic.prop <- modelHomotypic(SeuratObjMYSC@meta.data$Clusters)
-  # poisson distribution
-  nExp_poi <- round(DOUBLET_FORMATION_RATE * nrow(SeuratObjMYSC@meta.data))
-  nExp_poi.adj <- round(nExp_poi * (1 - homotypic.prop))
-
-  ## Run DoubletFinder with varying classification stringencies
-  # use 10 principle components, doublet count as 0.25 (not too important)
-  # pK and pANN (neighborhood size) calculated using parameter sweep
-  SeuratObjMYSC <- doubletFinder_v3(
-    SeuratObjMYSC, PCs = 1:10,
-    pN = 0.25, pK = as.numeric(df$pK[df$BCmetric == max(df$BCmetric)]),
-    nExp = nExp_poi, reuse.pANN = FALSE, sct = SCT
+  SeuratObjMYSC$mito_ratio <- SeuratObjMYSC$percent.mt / 100
+  
+  SeuratObjMYSC$ribo_ratio <- PercentageFeatureSet(
+    SeuratObjMYSC, pattern = "^RP[LS]"
   )
-
-  SeuratObjMYSC <- doubletFinder_v3(
-    SeuratObjMYSC, PCs = 1:10,
-    pN = 0.25, pK = as.numeric(df$pK[df$BCmetric == max(df$BCmetric)]),
-    nExp = nExp_poi.adj, reuse.pANN = colnames(SeuratObjMYSC@meta.data)[5],
-    sct = SCT
+  SeuratObjMYSC$ribo_ratio <- SeuratObjMYSC$ribo_ratio / 100
+  
+  # miQC
+  SeuratObjMYSC <- RunMiQC(
+    SeuratObjMYSC, 
+    percent.mt = "percent.mt", 
+    nFeature_RNA = "nFeature_RNA",
+    backup.option = "percent",
+    backup.percent = config$mito_ratio * 100
   )
-
-  # rename columns
-  colnames(SeuratObjMYSC@meta.data)[
-    length(SeuratObjMYSC@meta.data) - 1
-  ] <- "pANN"
-  colnames(SeuratObjMYSC@meta.data)[
-    length(SeuratObjMYSC@meta.data)
-  ] <- "DoubletStatus"
-
+  
+  if (max(SeuratObjMYSC$miQC.probability) > 0) {
+    # plots
+    QC1 <- PlotMiQC(
+      SeuratObjMYSC, color.by = "miQC.probability"
+    ) + 
+      ggplot2::scale_color_gradient(low = "grey", high = "purple")
+    
+    pdf(paste0(
+      QCDirectory, FILES[i],
+      " Scatterplot - Determining Probability of Low Quality Cells.pdf"
+    ), width = 8, height = 5.5, family = "ArialMT")
+    print(QC1)
+    dev.off()
+    
+    QC2 <- PlotMiQC(SeuratObjMYSC, color.by = "miQC.keep")
+    pdf(paste0(
+      QCDirectory, FILES[i],
+      " Scatterplot - Cells Passing QC.pdf"
+    ), width = 8, height = 5.5, family = "ArialMT")
+    print(QC2)
+    dev.off()
+  }
+  
   # save plot
   D <- DimPlot(
-    SeuratObjMYSC, split.by = "DoubletStatus",
+    SeuratObjMYSC, split.by = "scDblFinder.class",
     order = TRUE, shuffle = TRUE
   )
   pdf(paste0(
@@ -150,20 +131,65 @@ for(i in 1:length(FILES)){
   )
   print(D)
   dev.off()
-
+  
+  # subset based on miQC
+  SeuratObjMYSC <- subset(SeuratObjMYSC, miQC.keep == "keep")
+  
+  # rename columns
+  SeuratObjMYSC$DoubletStatus <- SeuratObjMYSC$scDblFinder.class
+  SeuratObjMYSC$scDblFinder.class <- NULL
+  SeuratObjMYSC$scDblFinder.score <- NULL
+  SeuratObjMYSC$scDblFinder.cxds_score <- NULL
+  SeuratObjMYSC$scDblFinder.weighted <- NULL
+  SeuratObjMYSC$miQC.probability <- NULL
+  
   # save object
   saveRDS(SeuratObjMYSC, file = paste0(RobjDirectory, FILES[i], ".rds"))
   SeuratSamples[[i]] <- SeuratObjMYSC
 }
 
-######## AGGREGATION + QC PLOTS ########
+}
+######## AGGREGATION ########## 
+if (config$aggr_cells) {
+  stopifnot(length(config$aggr_FILES) > 0)
+  for (idx in 1:length(config$aggr_FILES)) {
+    aggr_file <- config$aggr_FILES[idx]
+    aggr_filename <- paste0(
+      RobjDir, aggr_file, "/",
+      "GEX", aggr_file, "_res0.9.rds"
+    )
+    SeuratSamples[[idx]] <- readRDS(aggr_filename)
+  }
+  
+  SeuratObj <- merge(
+    x = SeuratSamples[[1]], y = SeuratSamples[-1], 
+    add.cell.ids = config$aggr_FILES
+  )
+  
+  # subset immune cells as indicated
+  # default identity is double status (for now)
+  Idents(SeuratObj) <- SeuratObj$Assignment
+  
+  # remove doublets from Seurat data structure 
+  SeuratObj <- subset(
+    SeuratObj, 
+    cells = WhichCells(SeuratObj, idents = config$aggr_categories)
+  )
+  
+} else {
+  # merge samples into one object
+  SeuratObj <- merge(
+    x = SeuratSamples[[1]], y = SeuratSamples[-1], 
+    add.cell.ids = config$FILES
+  )
+}
 
-# merge samples into one object
-SeuratObj <- merge(
-  x = SeuratSamples[[1]], y = SeuratSamples[-1], 
-  add.cell.ids = config$FILES
-)
 
+
+
+
+
+########### QC PLOTS ########
 # plot doublet status
 PDS <- plot_bargraph (
   seurat_object = SeuratObj, aesX = "DoubletStatus", fill = "orig.ident",
@@ -179,13 +205,16 @@ pdf(paste0(
 PDS
 dev.off()
 
-# default identity is double status (for now)
-Idents(SeuratObj) <- SeuratObj$DoubletStatus
+if (! config$aggr_cells) {
+  # default identity is double status (for now)
+  Idents(SeuratObj) <- SeuratObj$DoubletStatus
+  
+  # remove doublets from Seurat data structure
+  SeuratObj <- subset(
+    SeuratObj, cells = WhichCells(SeuratObj, idents = "singlet")
+  )
+}
 
-# remove doublets from Seurat data structure 
-SeuratObj <- subset(
-  SeuratObj, cells = WhichCells(SeuratObj, idents = "Singlet")
-)
 
 
 # extract current metadata
@@ -262,13 +291,13 @@ SeuratObj$ribo_category <- map_chr(
 # plot
 P1 <- plot_bargraph (
   seurat_object = SeuratObj, aesX = "Sample", fill = "Sample",
-  y_label = "Composition (Number of cells)", x_label = NULL, 
+  y_label = "Composition (Number of cells)", x_label = NULL,
   y_lower_limit = 0, y_break = 1000
 )
 
 pdf(paste0(
-  QCDirectory, ObjName, Subset, 
-  " Barplot number of cells per sample.pdf"), 
+  QCDirectory, ObjName, Subset,
+  " Barplot number of cells per sample.pdf"),
   width = 8, height = 5.5, family = FONT_FAMILY
 )
 P1
@@ -303,21 +332,21 @@ x5 <- plot_densitygraph (
 
 
 XX <- grid_arrange_shared_legend(
-  x1 + theme_min(), 
-  x2 + theme_min(), 
-  x3 + theme_min(), 
-  x4 + theme_min(), 
+  x1 + theme_min(),
+  x2 + theme_min(),
+  x3 + theme_min(),
+  x4 + theme_min(),
   x5 + theme_min(),
-  position = "right", 
+  position = "right",
   ncol = 2, nrow = 3
 )
 
 #violin plots
 X <- VlnPlot(
-  SeuratObj, 
-  features = c("nFeature_RNA", "nCount_RNA", "mito_ratio", "ribo_ratio"), 
-  ncol = 4, pt.size = 0, 
-  cols = get_colors(seurat_object = SeuratObj, color_by = "Sample"), 
+  SeuratObj,
+  features = c("nFeature_RNA", "nCount_RNA", "mito_ratio", "ribo_ratio"),
+  ncol = 4, pt.size = 0,
+  cols = get_colors(seurat_object = SeuratObj, color_by = "Sample"),
   group.by = "Sample"
 ) +
   RotatedAxis()
@@ -327,15 +356,15 @@ X <- VlnPlot(
 
 
 x6 = ggarrange(
-  X[[1]] + theme_min() + NoLegend() + RotatedAxis(), 
-  X[[2]] + theme_min() + NoLegend() + RotatedAxis(), 
-  X[[3]] + theme_min() + NoLegend() + RotatedAxis(), 
-  X[[4]] + theme_min() + NoLegend() + RotatedAxis(), 
+  X[[1]] + theme_min() + NoLegend() + RotatedAxis(),
+  X[[2]] + theme_min() + NoLegend() + RotatedAxis(),
+  X[[3]] + theme_min() + NoLegend() + RotatedAxis(),
+  X[[4]] + theme_min() + NoLegend() + RotatedAxis(),
   nrow = 2
 )
 
 pdf(paste0(
-  QCDirectory, ObjName, Subset, 
+  QCDirectory, ObjName, Subset,
   " GEX feature and count.pdf"
 ), width = 12, height = 16, family = FONT_FAMILY
 )
@@ -394,7 +423,7 @@ saveRDS(
     "_res", config$RESOLUTION, ".rds"
     )
 )
-
+ 
 ########### PCA & HARMONY BATCH CORRECTION (GEX) ##########
 DefaultAssay(SeuratObj) <- "RNA"
 

@@ -22,6 +22,8 @@ library(easypackages)
 # BiocManager::install("celldex")
 # BiocManager::install("SingleR")
 # BiocManager::install("biomaRt")
+# BiocManager::install("scDblFinder")
+# BiocManager::install("miQC")
 
 # install.packages("tidyverse")
 # install.packages('clustree') 
@@ -33,6 +35,7 @@ library(easypackages)
 # remotes::install_github("carmonalab/UCell", ref="v1.3")
 # remotes::install_github("carmonalab/scGate")
 # remotes::install_github("carmonalab/ProjecTILs")
+# remotes::install_github('satijalab/seurat-wrappers')
 # devtools::install_github("sjessa/ggmin")
 # install.packages("magick")
 # install.packages("gmailr", repos="http://cran.r-project.org")
@@ -47,7 +50,7 @@ MyPackages <- c(
   "glmGamPoi", "gmailr", "rjson", "here", "SeuratDisk",
   "gplots", "clustifyr", "fgsea", "purrr", "clustree",
   "SingleR", "celldex", "ProjecTILs", "biomaRt", "data.table",
-  "umap", "pheatmap"
+  "umap", "pheatmap", "scDblFinder", "miQC", "SeuratWrappers"
 )
 
 # similar to libaries, but will install package as well
@@ -65,7 +68,6 @@ library(Nourpal)
 
 
 ################ SET PARAMETERS ###############
-DOUBLET_FORMATION_RATE <- config$DOUBLET_FORMATION_RATE
 
 # resolution for cluster-finding after PCA
 RESOLUTIONS <- config$RESOLUTIONS
@@ -117,6 +119,7 @@ if (! dir.exists(OutDirectory)) dir.create(OutDirectory)
 OutputDirectory <- paste0(
   OutDirectory, "/", ObjName, "Res", config$RESOLUTION, "/"
   )
+utils::browseURL(OutputDirectory)
 if (! dir.exists(OutputDirectory)) dir.create(OutputDirectory)
 ConfigDirectory <- paste0(OutputDirectory, "/Configs/")
 if (! dir.exists(ConfigDirectory)) dir.create(ConfigDirectory)
@@ -155,6 +158,11 @@ clustifyrDirectory <- paste0(OutputDirectory, "/clustifyr/")
 if (! dir.exists(clustifyrDirectory) & RESOLUTION != "All") {
   dir.create(clustifyrDirectory)
 } 
+
+ADTDirectory <- paste0(OutputDirectory, "/ADT_plots/")
+if (! dir.exists(ADTDirectory) & config$USE_ADT == TRUE) {
+  dir.create(ADTDirectory)
+}
 
 ##################### GENERIC HELPER FUNCTIONS ######################
 
@@ -205,8 +213,9 @@ get_top_cluster_markers <- function(
 
 ############### GET CASE CORRECT FEATURES ##############
 case_sensitive_features <- function(
-  seurat_object, features
+  seurat_object, features, assay = "RNA"
 ) {
+  DefaultAssay(SeuratObj) <- assay
   final_features <- list()
   for (seurat_gene in rownames(SeuratObj)) {
     idx_match <- match(
@@ -339,75 +348,70 @@ projectils_ref_spec_dimreducs <- function(ref_projectils) {
 projectils_ref_full_translation <- function (
   ref_projectils, 
   SeuratObj,
-  novel_ref_genes_human_filename = paste0(
-    dataDirectory, "projecTILs/novel_mouse_to_human_genes.csv"
+  ref_genes_human_filename = paste0(
+    dataDirectory, "projecTILs/", analyses$projecTILs_ref,
+    "_mouse_to_human_genes.csv"
   )
 ) {
   # we will be recalculating almost everything except integrated assay
+  DefaultAssay(ref_projectils) <- "integrated"
   ref_projectils <- DietSeurat(  
     ref_projectils,
     assays = "integrated"
   )
   ref_projectils@misc <- list()
   
+  
+  
   # start translation
-  ref_genes <- rownames(ref_projectils)
-  # most genes will already be overlapping
-  overlap_genes <- case_sensitive_features(SeuratObj, ref_genes)
-  # find genes that did not overlap
-  novel_ref_genes <- ref_genes[!(ref_genes %in% names(overlap_genes))]
+  ref_genes_mouse <- rownames(ref_projectils)
   
-  
-  # for non-overlap genes, they may be human or mouse
-  # since we don't know a priori, translate all non-overlap genes to human
-  if (file.exists(novel_ref_genes_human_filename)) {
-    # read the precalculated novel_ref_genes_human via csv
-    novel_ref_genes_human <- as.list(read.csv(
-      novel_ref_genes_human_filename
+  # translate all mouse genes to human genes
+  if (file.exists(ref_genes_human_filename)) {
+    # read the precalculated ref_genes_human via csv
+    ref_genes_human <- as.list(read.csv(
+      ref_genes_human_filename
     ))
   } else {
-    # translate novel reference genes to human
+    # translate reference genes to human
     # (may already be human, but might still be mouse...)
-    novel_ref_genes_human <- list()
-    for (mouse_gene in novel_ref_genes) {
+    ref_genes_human <- list()
+    for (mouse_gene in ref_genes_mouse) {
       human_gene <- convertMouseGeneList(mouse_gene)
       if (length(human_gene) != 0) {
         # biomart human >> ref mouse
-        novel_ref_genes_human[[human_gene[1]]] <- mouse_gene
+        ref_genes_human[[human_gene[1]]] <- mouse_gene
       }
     }
     # this takes a long time, so write to csv:
     write.table(
-      novel_ref_genes_human,
-      file = novel_ref_genes_human_filename,
+      ref_genes_human,
+      file = ref_genes_human_filename,
       quote = FALSE, sep = ",", row.names = TRUE
     )
   }
   
+  # ref_genes_human: biomart human >> mouse gene
   
   # translate biomart human to Seurat human identifiers
-  # biomart human >> Seurat human
-  overlap_novel_genes_untranslated <- case_sensitive_features(
-    SeuratObj, names(novel_ref_genes_human)
+  # genes_untranslated: biomart human >> Seurat human
+  genes_untranslated <- case_sensitive_features(
+    SeuratObj, names(ref_genes_human)
   )
-  # we ultimately want ref mouse gene >> Seurat human
-  overlap_novel_genes <- list()
-  for (human_gene_ref in names(overlap_novel_genes_untranslated)) {
-    overlap_novel_genes[[novel_ref_genes_human[[human_gene_ref]]]] <-
-      overlap_novel_genes_untranslated[[human_gene_ref]]
+  # we ultimately want 
+  # genes_translated: mouse gene >> Seurat human
+  genes_translated <- list()
+  for (human_gene_ref in names(genes_untranslated)) {
+    genes_translated[[ref_genes_human[[human_gene_ref]]]] <-
+      genes_untranslated[[human_gene_ref]]
   }
-  # concatenate w previous overlap genes
-  overlap_genes <- c(
-    overlap_genes,
-    overlap_novel_genes
-  )
-  
+
   
   # translate reference gene names, in order
   ref_to_Seurat <- list()
-  for (ref_gene in ref_genes) {
-    if (ref_gene %in% names(overlap_genes)) {
-      ref_to_Seurat <- append(ref_to_Seurat, overlap_genes[[ref_gene]])
+  for (ref_gene in ref_genes_mouse) {
+    if (ref_gene %in% names(genes_translated)) {
+      ref_to_Seurat <- append(ref_to_Seurat, genes_translated[[ref_gene]])
     } else {
       # no translation, so use original name
       # we will exclud these genes later via var.features
@@ -419,7 +423,7 @@ projectils_ref_full_translation <- function (
   ref_projectils <- RenameGenesSeurat(
     obj = ref_projectils, 
     newnames = ref_to_Seurat, 
-    var_features = overlap_genes
+    var_features = genes_translated
   )
   
   # scale data
@@ -429,7 +433,8 @@ projectils_ref_full_translation <- function (
   ref_projectils <- GEX_pca(ref_projectils, " projecTILs pca rerun ")
   E1 <- ElbowPlot(ref_projectils)
   pdf(paste0(
-    dataDirectory, "projecTILs/", " projecTILs rerun pca.pdf"
+    dataDirectory, "projecTILs/ref", analyses$projecTILs_ref,
+    " projecTILs rerun pca.pdf"
   ), width = 12, height = 4.5, family = FONT_FAMILY
   )
   E1
@@ -451,7 +456,7 @@ projectils_ref_full_translation <- function (
   )
   
   pdf(paste0(
-    dataDirectory, "projecTILs/", 
+    dataDirectory, "projecTILs/ref", analyses$projecTILs_ref,
     " projecTILs recalculated with human genes UMAP.pdf"
   ), width = 12, height = 7, family = FONT_FAMILY
   )
@@ -465,7 +470,8 @@ projectils_ref_full_translation <- function (
   saveRDS(
     ref_projectils, 
     file = paste0(
-      dataDirectory, "projecTILs/processed_mouse2human_reference.rds"
+      dataDirectory, "projecTILs/", analyses$projecTILs_ref,
+      "_processed_mouse2human_reference.rds"
     )
   )
   return (ref_projectils)
@@ -667,16 +673,21 @@ plot_dotgraph <- function (
 #################### TEMPLATE FEATURE PLOT ###################
 plot_featureplot <- function(
   seurat_object, feature_gene, split_by, reduction,
-  order = TRUE, label = TRUE, label_size = 7, repel = TRUE,
+  order = TRUE, label = FALSE, label_size = 7, repel = FALSE,
   cols = Nour_cols(c("darkpurple", "lightorange")), pt_size = 0.3,
   legend_title_position = "top", legend_title_size = 10,
   legend_location = "right",
-  ncol = 1, nrow = 1, widths = c(0.03, 1, 1)
+  ncol = 1, nrow = 1, widths = c(0.03, 1, 1),
+  assay = "RNA"
 ) {
+  DefaultAssay(seurat_object) <- assay
+
   feature_gene <- case_sensitive_features(
     seurat_object,
-    c(feature_gene)
+    c(feature_gene),
+    assay = assay
   )
+
   feature_gene <- unlist(unname(feature_gene))
   if (length(feature_gene) == 0) {
     stop(paste0("could not find gene feature: ", feature_gene))
@@ -686,8 +697,8 @@ plot_featureplot <- function(
   
   F1 <- FeaturePlot(
     seurat_object, features = feature_gene, split.by = split_by,
-    order = order, label = label, label.size = label_size, repel = repel,
-    cols = cols, pt.size = pt_size, reduction = reduction,
+    order = order, cols = cols, pt.size = pt_size, reduction = reduction,
+    label = label, repel = repel, label.size = label_size
   )
   
   legend <- get_legend(
@@ -710,6 +721,58 @@ plot_featureplot <- function(
 }
 
 
+##################### TEMPLATE ADT CORRELATION ########################
+plot_correlation <- function(
+  SeuratObj, 
+  x, y, split_by, lab_x, lab_y,
+  method = "pearson"
+) {
+  # translate to features
+  x <- paste0(
+    "rna_",
+    case_sensitive_features(SeuratObj, features = x, assay = "RNA")
+  )
+  y <- paste0(
+    "adt_",
+    case_sensitive_features(SeuratObj, features = y, assay = "ADT")
+  )
+  
+  df <- FetchData(
+    SeuratObj, vars = c(x, y, split_by)
+  )
+  
+  plot <- ggplot(
+    df, 
+    aes_string(
+      x = paste0("`", x, "`"),
+      y = paste0("`", y, "`")
+    )
+  ) + 
+    geom_point()+
+    geom_smooth(method = lm) +
+    facet_wrap(
+      as.formula(paste("~", split_by))
+    ) + stat_cor(method = method, label.x = 0.5, label.y = 2.8) + 
+    theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.background = element_blank(),
+      axis.line = element_line(colour = "black"),
+      axis.text.y = element_text(color = "black", size = 12),
+      axis.text.x = element_text(
+        color = "black", hjust = 1, size = 15
+      ),
+      title = element_text(size = 15, face = "bold"),
+      axis.text = element_text(size = 15),
+      axis.title = element_text(size = 15, face = "bold"),
+      plot.margin = unit(c(0.5, 0.5, 0.2, 0.5), "cm"),
+      strip.text.x = element_text(size = 15),
+      strip.background = element_rect(fill = "white", colour = "black", size = 1)
+    ) +
+    labs(x = lab_x, y = lab_y, title = "ADT vs RNA")
+  
+  return(plot)
+}
 ################### TEMPLATE HEATMAP #################
 plot_heatmap <- function(
   seurat_object, downsample_n,
@@ -723,7 +786,12 @@ plot_heatmap <- function(
   label_n_markers <- get_top_cluster_markers(markers, label_n)
   
   subset <- subset(seurat_object, downsample = downsample_n)
-  sorted_barcodes <- names(sort(subset$ClusterRNA))
+  if (grepl("RNA", cluster, fixed = TRUE)) {
+    sorted_barcodes <- names(sort(subset$ClusterRNA))
+  } else if (grepl("WNN", cluster, fixed = TRUE)) {
+    sorted_barcodes <- names(sort(subset$ClusterWNN))
+  }
+  
   
   # plot data rows are genes, cols are cells
   plot_data <- as.data.frame(subset@assays$RNA@scale.data)
@@ -880,7 +948,7 @@ theme_min2 <- function(base_size = 11, base_family = "") {
     )
 }
 }
-###################### PREPROCESSING FUNCTIONS ###################
+###################### GEX PREPROCESSING FUNCTIONS ###################
 # created here, so as to avoid code duplication
 {
 ############ NORMALIZATION ##############
@@ -967,18 +1035,44 @@ GEX_louvain <- function(
 }
 
 
-###################### STANDARD VIZ FUNCTIONS ###################
+###################### ADT PREPROCESSING FUNCTIONS ###################
 {
-################ FIND CLUSTER BIOMARKERS (GEX) ################
-GEX_cluster_markers <- function(SeuratObj) {
-  DefaultAssay(SeuratObj) <- "RNA"
-  Idents(SeuratObj) <- "ClusterRNA"
-  if (SCT) {
-    SeuratObj <- PrepSCTFindMarkers(SeuratObj, assay = "RNA")
+####################### ADT LOUVAIN #####################
+ADT_louvain <- function(
+  SeuratObj, resolution, reduction_list = list("harmonyRNA", "pcaADT"),
+  algorithm = 3, verbose = FALSE
+) {
+  print(paste0("Louvain for res", resolution))
+  SeuratObj <- SeuratObj %>%
+    FindMultiModalNeighbors(
+      reduction.list = reduction_list, 
+      dims.list = list(
+        1 : analyses$harmonyRNA_dims, 1 : analyses$pcaADT_dims
+      )
+    ) %>%
+    FindClusters(
+      graph.name = "wsnn",
+      algorithm = algorithm,
+      resolution = resolution,
+      verbose = verbose
+    )
+  return (SeuratObj)
+}
+}
+###################### VIZ FUNCTIONS ###################
+{
+################ FIND CLUSTER BIOMARKERS (GEX + ADT) ################
+cluster_markers <- function(
+  SeuratObj, assay = "RNA", default_ident = "ClusterRNA"
+  ) {
+  DefaultAssay(SeuratObj) <- assay
+  Idents(SeuratObj) <- default_ident
+  if (SCT & assay == "RNA") {
+    SeuratObj <- PrepSCTFindMarkers(SeuratObj, assay = assay)
   }
   markers <- FindAllMarkers(
     SeuratObj,
-    assay = "RNA",
+    assay = assay,
     logfc.threshold = 0.5, 
     test.use = "wilcox", 
     only.pos = TRUE

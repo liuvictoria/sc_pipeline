@@ -1,16 +1,22 @@
 {
-	"FILES": ["MYSC70", "MYSC96", "MYSC98"],
+	"FILES": ["MYSC98"],
 	"count_matrices_dir" : "sample_feature_bc_matrix",
 
-	"Directory": "~/Box/Yun lab projects/victoria_liu/matching_patients",
-	"NourpalDirectory": "~/Box/Yun lab projects/victoria_liu/Nourpal",
-
 	"ObjName": "GEX",
-	"Subset": "AllTumor",
+	"Subset": "testtemp",
 
-	"RESOLUTIONS": [0.3, 0.5, 0.7, 0.8, 0.9, 1, 1.2],
-	"RESOLUTION": 1.2,
+	"aggr_cells": false,
+	"aggr_FILES": ["AllTumor", "AllPBMC"],
+	"aggr_categories": [
+		"Myeloid", "TCells", "CD4 T", "CD8 T",
+		"CD14+ Mono", "CD16+ Mono",
+    "NK", "B", "DC", "CD34+", "pDCs"
+	],
 
+	"RESOLUTIONS": [0.3, 0.5, 0.7, 0.8, 0.9, 1, 1.2, 1.4],
+	"RESOLUTION": 0.5,
+
+	"USE_ADT": true,
 	"ADT_PRESENT": {
 		"8" : false,
 		"9" : false,
@@ -21,19 +27,18 @@
 		"97": true,
 		"98": true
 	},
-	"USE_ADT": false,
 
 	"SCT": true,
 	"batch_norm_by": "Sample",
+
 	"nFeature_RNA": 200,
 	"ribo_ratio": 0.4,
 	"mito_ratio": 0.15,
 	"nFeature_ADT": 40,
-	"DOUBLET_FORMATION_RATE": 0.075,
 
 	"sample_info": {
 		"8" : "CONTROL1_blood",
-		"9" : "CONTROL2_blood",
+		"9" : "CONTROL1_blood",
 		"70": "GBM6_tumor",
 		"71": "GBM6_blood",
 		"95": "GBM30_blood",
@@ -53,7 +58,7 @@
 	},
 	"patient_info": {
 		"8" : "CONTROL1",
-		"9" : "CONTROL2",
+		"9" : "CONTROL1",
 		"70": "GBM6",
 		"71": "GBM6",
 		"95": "GBM30",
@@ -63,5 +68,8 @@
 	},
 
 	"run_Harmony_CC_controls": false,
-	"FONT_FAMILY": "ArialMT"
+	"FONT_FAMILY": "ArialMT",
+
+	"Directory": "~/Box/Yun lab projects/victoria_liu/matching_patients",
+	"NourpalDirectory": "~/Box/Yun lab projects/victoria_liu/Nourpal"
 }
