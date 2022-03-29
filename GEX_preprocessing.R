@@ -1,5 +1,6 @@
 ################# LOAD UTILS  ##############
 source("~/Box/Yun lab projects/victoria_liu/matching_patients/R_Code/utils.R")
+analyses <- fromJSON(file = here("analysis.json"))
 SeuratSamples <- list()
 
 ######### QC + Doublet removal ########
@@ -49,9 +50,8 @@ for(i in 1:length(FILES)){
   
   # Converting back to Seurat Obj
   SeuratObjMYSC <- as.Seurat(sce)
-  CellInfo <- SeuratObjMYSC@meta.data
   Idents(SeuratObjMYSC) <- SeuratObjMYSC$orig.ident
-  
+  DefaultAssay(SeuratObjMYSC) <- "RNA"
   
   # SCT
   if (SCT) {
@@ -185,10 +185,6 @@ if (config$aggr_cells) {
 }
 
 
-
-
-
-
 ########### QC PLOTS ########
 # plot doublet status
 PDS <- plot_bargraph (
@@ -214,8 +210,6 @@ if (! config$aggr_cells) {
     SeuratObj, cells = WhichCells(SeuratObj, idents = "singlet")
   )
 }
-
-
 
 # extract current metadata
 CellInfo <- SeuratObj@meta.data
@@ -405,7 +399,8 @@ if (SCT) {
   SeuratObj <- SCTransform(
     SeuratObj, method = "glmGamPoi", 
     assay = "RNApreSCT", new.assay.name = "RNA",
-    vars.to.regress = c("S.Score", "G2M.Score"), verbose = FALSE
+    vars.to.regress = c("S.Score", "G2M.Score"), verbose = FALSE,
+    return.only.var.genes = FALSE
   )
 } else {
   SeuratObj <- ScaleData(
@@ -447,8 +442,6 @@ dev.off()
 
 
 ######## LOUVAIN CLUSTERING (GEX) ########
-analyses <- fromJSON(file = here("analysis.json"))
-
 for (resolution in config$RESOLUTIONS) {
   SeuratObj <- GEX_louvain(
     SeuratObj, resolution = resolution, reduction = "harmonyRNA"

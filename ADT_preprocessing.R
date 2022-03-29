@@ -1,6 +1,7 @@
 ################# LOAD UTILS  ##############
 source("~/Box/Yun lab projects/victoria_liu/matching_patients/R_Code/utils.R")
 
+analyses <- fromJSON(file = here("analysis.json"))
 # this object is fully pre-processed for GEX
 # it must include ADT data, but the ADT data is not yet preprocessed
 # QC and doublet removal have already been done, courtesy of GEX
@@ -68,69 +69,11 @@ dev.off()
 
 
 ########### BATCH INTEGRATION (ADT) ###########
+# this function is also used in de novo clustering
 SeuratObj <- RenameAssays(SeuratObj, ADT = "ADTpreInt")
-DefaultAssay(SeuratObj) <- "ADTpreInt"
-# normalize per sample
-# using CLR normalization based on: 
-# https://satijalab.org/seurat/articles/weighted_nearest_neighbor_analysis.html
-samples_list <- SplitObject(SeuratObj, split.by = config$batch_norm_by) %>%
-  lapply(
-    FUN = function(x) {
-      x <- NormalizeData(
-        x, normalization.method = "CLR", margin = 2, assay = "ADTpreInt"
-      )
-    }
-  )
-# select features that are repeatedly variable across data sets
-features <- SelectIntegrationFeatures(
-  object.list = samples_list
-)
-
-samples_list <- lapply(
-  X = samples_list, 
-  FUN = function(x) {
-    x <- ScaleData(x, features = features, verbose = FALSE)
-    x <- RunPCA(x, features = features, verbose = FALSE)
-  })
-
-# find anchor cells (this step stakes a while)
-# use rpca; reference:
-# https://satijalab.org/seurat/archive/v3.2/integration.html
-cell_anchors <- FindIntegrationAnchors(
-  object.list = samples_list, anchor.features = features, reduction = "rpca"
-)
-# combine into integrated Seurat object
-SeuratObj_ADT <- IntegrateData(
-  anchorset = cell_anchors, 
-  normalization.method = "LogNormalize",
-  new.assay.name = "ADT"
-)
-
-# scale data & dimreduc PCA, in prep for WNN
-DefaultAssay(SeuratObj_ADT) <- "ADT"
-SeuratObj_ADT <- SeuratObj_ADT %>%
-  ScaleData() %>%
-  RunPCA(reduction.name = "pcaADT")
-
-# add ADT data back into original SeuratObj
-# necessary bc IntegrateData destroys scale.data for all assays
-# ignore any warnings about offending keys
-# ref: https://github.com/satijalab/seurat/issues/3843
-SeuratObj[["ADT"]] <- SeuratObj_ADT[["ADT"]]
-SeuratObj[["pcaADT"]] <- SeuratObj_ADT[["pcaADT"]]
-
-E2 <- ElbowPlot(SeuratObj, ndims = 15, reduction = "pcaADT")
-pdf(paste0(
-  ElbowDirectory, ObjName, Subset, 
-  " elbow plot after CC scaling integration and pca (ADT).pdf"
-), width = 12, height = 4.5, family = FONT_FAMILY
-)
-E2
-dev.off()
+SeuratObj <- ADT_integrate(SeuratObj)
 
 ######## LOUVAIN CLUSTERING ########
-analyses <- fromJSON(file = here("analysis.json"))
-
 for (resolution in config$RESOLUTIONS) {
   SeuratObj <- ADT_louvain(SeuratObj, resolution)
 }

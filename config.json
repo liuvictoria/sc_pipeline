@@ -1,12 +1,12 @@
 {
-	"FILES": ["MYSC98"],
+	"FILES": ["MYSC71", "MYSC95", "MYSC97"],
 	"count_matrices_dir" : "sample_feature_bc_matrix",
 
-	"ObjName": "GEX",
-	"Subset": "testtemp",
+	"ObjName": "ADT",
+	"Subset": "PatientPBMC",
 
 	"aggr_cells": false,
-	"aggr_FILES": ["AllTumor", "AllPBMC"],
+	"aggr_FILES": ["PatientTumor", "PatientPBMC"],
 	"aggr_categories": [
 		"Myeloid", "TCells", "CD4 T", "CD8 T",
 		"CD14+ Mono", "CD16+ Mono",

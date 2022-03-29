@@ -1,7 +1,7 @@
 ################# LOAD UTILS ##############
 source("~/Box/Yun lab projects/victoria_liu/matching_patients/R_Code/utils.R")
 
-# laod visualizing parameters
+# load visualizing parameters
 analyses <- fromJSON(file = here("analysis.json"))
 
 # this object is fully pre-processed for GEX
@@ -34,34 +34,47 @@ Clusterspecificgenes <- analyses[[
   paste0(analyses[["denovo_lineage"]], "_lineage_markers")
 ]]
 
-############### ADD CLUSTER METADATA (GEX)  #################
+############### ADD CLUSTER METADATA  #################
+# i.e. cluster_res_column = "RNA_snn_res.0.5"
+cluster_res_column <- ifelse(
+  analyses$viz_clustering == "RNA",
+  paste0("RNA_snn_res.", RESOLUTION),
+  paste0("wsnn_res.", RESOLUTION)
+)
+# i.e. cluster_name = "ClusterRNA"
+cluster_name <- ifelse(
+  analyses$viz_clustering == "RNA",
+  "ClusterRNA",
+  "ClusterWNN"
+)
 CellInfo <- SeuratObj@meta.data
+
 # Rename Clusters
 cluster_count <- length(levels(as.factor(
-  SeuratObj[[paste0("RNA_snn_res.", RESOLUTION)]][, 1]
+  SeuratObj[[cluster_res_column]][, 1]
   )))
 
 for(j in 1 : cluster_count){
   if (j < 10){
-    CellInfo$ClusterRNA[
-      CellInfo[[paste0("RNA_snn_res.", RESOLUTION)]] == j - 1
+    CellInfo[[cluster_name]][
+      CellInfo[[cluster_res_column]] == j - 1
       ] <- paste0(analyses$cluster_prefix, "0", j)
   }
   else {
-    CellInfo$ClusterRNA[
-      CellInfo[[paste0("RNA_snn_res.", RESOLUTION)]] == j - 1
+    CellInfo[[cluster_name]][
+      CellInfo[[cluster_res_column]] == j - 1
       ] <- paste0(analyses$cluster_prefix, j)
   }
 }
 SeuratObj@meta.data <- CellInfo
-Idents(SeuratObj) <- CellInfo$ClusterRNA
+Idents(SeuratObj) <- CellInfo[[cluster_name]]
 
 
 # remove unnecessary metadata; focusing on one resolution at a time
 for (metadata_col in colnames(SeuratObj@meta.data)) {
   if (
-    grepl("RNA_snn_res.", metadata_col, fixed = TRUE) 
-    & !grepl(RESOLUTION, metadata_col, fixed = TRUE)
+    grepl("snn_res.", metadata_col, fixed = TRUE) & 
+    ! grepl(RESOLUTION, metadata_col, fixed = TRUE)
     ) {
     print (paste0("removing ", metadata_col, " from metadata"))
     SeuratObj[[metadata_col]] <- NULL
@@ -71,7 +84,9 @@ for (metadata_col in colnames(SeuratObj@meta.data)) {
 
 # Get number of cells per cluster and per Sample
 write.csv(
-  as.matrix(table(SeuratObj@meta.data$ClusterRNA, SeuratObj@meta.data$Sample)),
+  as.matrix(table(
+    SeuratObj@meta.data[[cluster_name]], SeuratObj@meta.data$Sample
+  )),
   file = paste0(
     OutputDirectory, ObjName, Subset, 
     " number of cells per cluster and sample.csv"
@@ -87,29 +102,52 @@ write.csv(
 )
 
 write.csv(
-  dplyr::select(SeuratObj@meta.data, Sample), 
+  SeuratObj$Sample, 
   paste0(LoupeDirectory, ObjName, Subset, "_samples.csv")
 )
 
 write.csv(
-  dplyr::select(SeuratObj@meta.data, ClusterRNA), 
+  SeuratObj[[cluster_name]], 
   paste0(LoupeDirectory, ObjName, Subset, "_clusters.csv")
 )
 
-############## FIND CLUSTER BIOMARKERS (GEX) ################
-markers_filename <- paste0(
-  OutputDirectory, ObjName, Subset, 
-  " RNA cluster markers (by RNA)", "res", RESOLUTION, ".csv"
-)
-if (file.exists(markers_filename)) {
-  markers <- read.csv(markers_filename)
-} else {
-  # set default assay and identity
-  markers <- cluster_markers(SeuratObj)
+############## FIND CLUSTER BIOMARKERS ################
+if (analyses$viz_clustering == "RNA") {
+  markers_filename <- paste0(
+    OutputDirectory, ObjName, Subset, 
+    " RNA cluster markers (by RNA)", "res", RESOLUTION, ".csv"
+    )
+  markers <- cluster_markers(
+    SeuratObj, assay = "RNA", default_ident = "ClusterRNA"
+    )
   # save, because it takes a little time to calculate
   write.csv(markers, markers_filename)
-}
 
+  
+  
+} else if (analyses$viz_clustering == "WNN") {
+  markersRNA_filename <- paste0(
+    OutputDirectory, ObjName, Subset, 
+    " RNA cluster markers (by WNN)", "res", RESOLUTION, ".csv"
+  )
+  markersRNA <- cluster_markers(
+    SeuratObj, assay = "RNA", default_ident = "ClusterWNN"
+  )
+  # save, because it takes a little time to calculate
+  write.csv(markersRNA, markersRNA_filename)
+  
+  
+  markersADT_filename <- paste0(
+    OutputDirectory, ObjName, Subset, 
+    " ADT cluster markers (by WNN)", "res", RESOLUTION, ".csv"
+  )
+  markersADT <- cluster_markers(
+    SeuratObj, assay = "ADTpreInt", default_ident = "ClusterWNN"
+  )
+  # save, because it takes a little time to calculate
+  write.csv(markersADT, markersADT_filename)
+  markers <- markersRNA
+}
 
 ############### CLUSTER / SAMPLE HEATMAP ##################
 
@@ -123,7 +161,7 @@ HM_object <- plot_heatmap (
 
 pdf(paste0(
   heatDirectory, "heatmap", ObjName, Subset, 
-  "_res", RESOLUTION, "_top20 genes per ", 
+  "_res", RESOLUTION, "_top20 ", analyses$markers_assay, " features per ", 
   analyses$viz_clustering, "Cluster.pdf"
 ), width = 7, height = 6
 )
@@ -314,7 +352,7 @@ dev.off()
 SeuratObj@meta.data <- call_to_metadata(
   res = correlation_coefficients,
   metadata = SeuratObj@meta.data,
-  cluster_col = "ClusterRNA"
+  cluster_col = paste0("Cluster", analyses$viz_clustering)
 )
 
 SeuratObj$clustifyr <- SeuratObj$type
@@ -324,7 +362,7 @@ SeuratObj$r <- NULL
 
 
 
-################# (CUSTOM) CELL POPULATIONS: ASSIGNMENT ###############
+################# CELL POPULATIONS: ASSIGNMENT ###############
 if (
   ! is.na(analyses$which_assignment) &
   analyses$which_assignment %in% colnames(SeuratObj@meta.data)
@@ -532,7 +570,7 @@ dev.off()
 
 
 
-################# (CUSTOM) CELL POPULATIONS: DOTPLOTS ###################
+################# CELL POPULATIONS: DOTPLOTS ###################
 dotgraphs <- list()
 for (cluster_name in names(Clusterspecificgenes)) {
   cluster_genes <- Clusterspecificgenes[[cluster_name]]
@@ -572,10 +610,10 @@ pdf(paste0(
 D2
 dev.off()
 
-########### PREDEFINED CLUSTER FEATURE PLOTS #############
+########### (GEX) PREDEFINED CLUSTER FEATURE PLOTS #############
 # loop each assignment
 for (cluster_name in names(Clusterspecificgenes)) {
-  predefined_cluster_plots <- list()
+  predefined_cluster_plots_GEX <- list()
   cluster_genes <- Clusterspecificgenes[[cluster_name]]
   # loop each marker gene in assignment
   for (gene in cluster_genes){
@@ -585,22 +623,22 @@ for (cluster_name in names(Clusterspecificgenes)) {
       feature_gene = gene,
       split_by = NULL,
       reduction = paste0("umap", analyses$viz_clustering),
-      pt_size = 0.6,
-      label = T
+      pt_size = 0.6
     )
-    predefined_cluster_plots[[gene]] <- F1[[2]]
+    predefined_cluster_plots_GEX[[gene]] <- F1[[2]]
   }
 
 
   feature_plots <- ggpubr::ggarrange(
-    plotlist = predefined_cluster_plots,
+    plotlist = predefined_cluster_plots_GEX,
     ncol = 2,
     nrow = length(cluster_genes) %/% 2 + length(cluster_genes) %% 2
   )
 
   pdf(paste0(
     featuremapDirectory, cluster_name,
-    " featuremap ", ObjName, " ", Subset, ".pdf"
+    " featuremap umap_", analyses$viz_clustering, " ", 
+    ObjName, " ", Subset, ".pdf"
   ), width = 26, height = ceiling(length(cluster_genes) / 2) * 10
   )
   print(feature_plots)
@@ -608,6 +646,101 @@ for (cluster_name in names(Clusterspecificgenes)) {
 
 }
 
+#################### (ADT) FEATURE PLOTS #######################
+# loop each assignment
+if (USE_ADT & analyses$viz_clustering == "WNN") {
+# loop each assignment
+for (cluster_name in names(analyses$ADT_markers)) {
+  predefined_cluster_plots_ADT_GEX <- list()
+  cluster_features <- analyses$ADT_markers[[cluster_name]]
+
+  # loop each marker gene in assignment
+  for (ADT_feature in cluster_features){
+    print(ADT_feature)
+    F1 <- plot_featureplot (
+      seurat_object = SeuratObj,
+      feature_gene = ADT_feature,
+      assay = "ADT",
+      split_by = NULL,
+      reduction = paste0("umap", analyses$viz_clustering),
+      pt_size = 0.6
+    )
+
+    RNA_feature <- analyses$ADT_to_RNA[[ADT_feature]]
+    print(RNA_feature)
+    F2 <- plot_featureplot (
+      seurat_object = SeuratObj,
+      feature_gene = RNA_feature,
+      assay = "RNA",
+      split_by = NULL,
+      reduction = paste0("umap", analyses$viz_clustering),
+      pt_size = 0.6
+    )
+    predefined_cluster_plots_ADT_GEX[[ADT_feature]] <- F1[[2]]
+    predefined_cluster_plots_ADT_GEX[[RNA_feature]] <- F2[[2]]
+  }
+
+
+  feature_plots <- ggpubr::ggarrange(
+    plotlist = predefined_cluster_plots_ADT_GEX,
+    ncol = 2,
+    nrow = length(cluster_genes) %/% 2 + length(cluster_genes) %% 2
+  )
+
+  pdf(paste0(
+    ADTDirectory, cluster_name,
+    " featuremap umap_", analyses$viz_clustering, " ",
+    ObjName, " ", Subset, ".pdf"
+  ), width = 26, height = ceiling(length(cluster_genes) / 2) * 10
+  )
+  print(feature_plots)
+  dev.off()
+
+}
+
+}
+#################### (ADT) CORRELATION PLOTS ###################
+if (USE_ADT & analyses$viz_clustering == "WNN") {
+# loop each assignment
+for (cluster_name in names(analyses$ADT_markers)) {
+  predefined_cluster_plots_correlation <- list()
+  cluster_features <- analyses$ADT_markers[[cluster_name]]
+
+  # loop each marker gene in assignment
+  for (ADT_feature in cluster_features){
+    RNA_feature <- analyses$ADT_to_RNA[[ADT_feature]]
+    print(paste0(RNA_feature, ", ", ADT_feature))
+
+    # make sure x is RNA_feature, y is ADT_feature
+    sp1 <- plot_correlation (
+      SeuratObj,
+      x = RNA_feature, y = ADT_feature, split_by = "Assignment",
+      lab_x = RNA_feature, lab_y = ADT_feature,
+      method = "pearson"
+    )
+
+    predefined_cluster_plots_correlation[[ADT_feature]] <- sp1
+  }
+
+
+  feature_plots <- ggpubr::ggarrange(
+    plotlist = predefined_cluster_plots_correlation,
+    ncol = 2,
+    nrow = length(cluster_genes) %/% 2 + length(cluster_genes) %% 2
+  )
+
+  pdf(paste0(
+    ADTDirectory, cluster_name,
+    " ADT RNA correlation ",
+    ObjName, " ", Subset, ".pdf"
+  ), width = 26, height = ceiling(length(cluster_genes) / 2) * 10
+  )
+  print(feature_plots)
+  dev.off()
+
+}
+
+}
 
 ######### RIBO RATIO QC ##########
 # umap
@@ -766,4 +899,18 @@ saveRDS(
     RobjDirectory, ObjName, Subset,
     "_res", RESOLUTION, ".rds"
     )
+)
+
+# capture session info, versions, etc.
+writeLines(
+  capture.output(sessionInfo()), 
+  paste0(ConfigDirectory, ObjName, "_", Subset, "_sessionInfo.txt")
+)
+file.copy(
+  from = here("config.json"), 
+  to = paste0(ConfigDirectory, ObjName, "_", Subset, "_config_params.json")
+)
+file.copy(
+  from = here("analysis.json"), 
+  to = paste0(ConfigDirectory, ObjName, "_", Subset, "_analysis_params.json")
 )

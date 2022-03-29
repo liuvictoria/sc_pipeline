@@ -634,8 +634,10 @@ plot_dotgraph <- function (
   features, title,
   x_text_angle = 45,
   dot_scale = 5, scale = TRUE,
-  color_palette_option = "plasma"
+  color_palette_option = "plasma",
+  assay = "RNA"
 ) {
+  DefaultAssay(seurat_object) <- assay
   features <- case_sensitive_features(seurat_object, features)
   features <- unlist(unname(features))
   print(names(features))
@@ -725,6 +727,7 @@ plot_featureplot <- function(
 plot_correlation <- function(
   SeuratObj, 
   x, y, split_by, lab_x, lab_y,
+  slot = "scale.data",
   method = "pearson"
 ) {
   # translate to features
@@ -738,7 +741,7 @@ plot_correlation <- function(
   )
   
   df <- FetchData(
-    SeuratObj, vars = c(x, y, split_by)
+    SeuratObj, vars = c(x, y, split_by), slot = slot
   )
   
   plot <- ggplot(
@@ -752,7 +755,7 @@ plot_correlation <- function(
     geom_smooth(method = lm) +
     facet_wrap(
       as.formula(paste("~", split_by))
-    ) + stat_cor(method = method, label.x = 0.5, label.y = 2.8) + 
+    ) + stat_cor(method = method) + 
     theme(
       panel.grid.major = element_blank(),
       panel.grid.minor = element_blank(),
@@ -963,7 +966,8 @@ GEX_normalization <- function(SeuratObj){
       SeuratObj,
       assay = "RNApreSCT",
       new.assay.name = "RNA",
-      method = "glmGamPoi", verbose = FALSE
+      method = "glmGamPoi", verbose = FALSE,
+      return.only.var.genes = FALSE
     )
     
   } else {
@@ -990,6 +994,7 @@ GEX_normalization <- function(SeuratObj){
 
 ############ PCA ##############
 GEX_pca <- function(SeuratObjMYSC, file) {
+  DefaultAssay(SeuratObjMYSC) <- "RNA"
   SeuratObjMYSC <- RunPCA(
     SeuratObjMYSC,
     features = VariableFeatures(object = SeuratObjMYSC)
@@ -1037,6 +1042,72 @@ GEX_louvain <- function(
 
 ###################### ADT PREPROCESSING FUNCTIONS ###################
 {
+#################### ADT BATCH INTEGRATION #################
+  
+ADT_integrate <- function(SeuratObj) {  
+  DefaultAssay(SeuratObj) <- "ADTpreInt"
+  # normalize per sample
+  # using CLR normalization based on: 
+  # https://satijalab.org/seurat/articles/weighted_nearest_neighbor_analysis.html
+  samples_list <- SplitObject(SeuratObj, split.by = config$batch_norm_by) %>%
+    lapply(
+      FUN = function(x) {
+        x <- NormalizeData(
+          x, normalization.method = "CLR", margin = 2, assay = "ADTpreInt"
+        )
+      }
+    )
+  # select features that are repeatedly variable across data sets
+  features <- SelectIntegrationFeatures(
+    object.list = samples_list
+  )
+  
+  samples_list <- lapply(
+    X = samples_list, 
+    FUN = function(x) {
+      x <- ScaleData(x, features = features, verbose = FALSE)
+      x <- RunPCA(x, features = features, verbose = FALSE)
+    })
+  
+  # find anchor cells (this step stakes a while)
+  # use rpca; reference:
+  # https://satijalab.org/seurat/archive/v3.2/integration.html
+  cell_anchors <- FindIntegrationAnchors(
+    object.list = samples_list, anchor.features = features, reduction = "rpca"
+  )
+  # combine into integrated Seurat object
+  SeuratObj_ADT <- IntegrateData(
+    anchorset = cell_anchors, 
+    normalization.method = "LogNormalize",
+    new.assay.name = "ADT"
+  )
+  
+  # scale data & dimreduc PCA, in prep for WNN
+  DefaultAssay(SeuratObj_ADT) <- "ADT"
+  SeuratObj_ADT <- SeuratObj_ADT %>%
+    ScaleData() %>%
+    RunPCA(reduction.name = "pcaADT")
+  
+  # add ADT data back into original SeuratObj
+  # necessary bc IntegrateData destroys scale.data for all assays
+  # ignore any warnings about offending keys
+  # ref: https://github.com/satijalab/seurat/issues/3843
+  SeuratObj[["ADT"]] <- SeuratObj_ADT[["ADT"]]
+  SeuratObj[["pcaADT"]] <- SeuratObj_ADT[["pcaADT"]]
+  
+  E2 <- ElbowPlot(SeuratObj, ndims = 15, reduction = "pcaADT")
+  pdf(paste0(
+    ElbowDirectory, ObjName, Subset, 
+    " elbow plot after CC scaling integration and pca (ADT).pdf"
+  ), width = 12, height = 4.5, family = FONT_FAMILY
+  )
+  E2
+  dev.off()
+  
+  return (SeuratObj)
+}
+  
+  
 ####################### ADT LOUVAIN #####################
 ADT_louvain <- function(
   SeuratObj, resolution, reduction_list = list("harmonyRNA", "pcaADT"),
@@ -1058,6 +1129,7 @@ ADT_louvain <- function(
     )
   return (SeuratObj)
 }
+
 }
 ###################### VIZ FUNCTIONS ###################
 {

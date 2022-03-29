@@ -5,23 +5,22 @@ source("~/Box/Yun lab projects/victoria_liu/matching_patients/R_Code/utils.R")
 analyses <- fromJSON(file = here("analysis.json"))
 
 
-############# SUBSET CELLS (GEX) ############
+############# SUBSET CELLS ############
+superset_assay <- ifelse (
+  USE_ADT,
+  "ADT",
+  "GEX"
+)
 # this object is fully pre-processed for GEX
 SeuratObj_filename <- paste0(
   RobjDir, analyses$denovo_superset, "/",
-  "GEX", analyses$denovo_superset, 
+  superset_assay, analyses$denovo_superset, 
   "_res", analyses$denovo_superset_resolution, ".rds"
 )
 
 print(paste0("loading SeuratObj from file: ", SeuratObj_filename))
 # change the loading info in the config file
-SeuratObj <- readRDS(
-  paste0(
-    RobjDir, analyses$denovo_superset, "/",
-    "GEX", analyses$denovo_superset, 
-    "_res", analyses$denovo_superset_resolution, ".rds"
-  )
-)
+SeuratObj <- readRDS(SeuratObj_filename)
 
 # subset cells / remove unwanted clusters
 # unwanted clusters can be visually identified in parent UMAPs
@@ -29,15 +28,18 @@ SeuratObj <- readRDS(
 SeuratObj <- subset(
   SeuratObj, subset = Assignment == analyses$denovo_subset
   )
-# Idents(SeuratObj) <- "ClusterRNA"
 for (cluster_remove in analyses$denovo_clusters_remove) {
   SeuratObj <- subset(
     SeuratObj, subset = ClusterRNA != cluster_remove)
 }
 
-######## NORMALIZATION (GEX) ########
+######## NORMALIZATION ########
 SeuratObj <- GEX_normalization(SeuratObj)
 
+# includes (r)PCA for ADT
+if (USE_ADT & ObjName == "ADT") {
+  SeuratObj <- ADT_integrate(SeuratObj)
+}
 
 ######## PCA (GEX) ########
 SeuratObj <- GEX_pca(SeuratObj, paste0("Denovo ", config$Subset))
@@ -70,7 +72,7 @@ if (analyses$denovo_run_harmony) {
 }
 
 
-######## LOUVAIN CLUSTERING (GEX) ########
+######## LOUVAIN CLUSTERING ########
 reduction = ifelse(
   analyses$denovo_run_harmony, 
   "harmonyRNA", 
@@ -83,12 +85,18 @@ for (resolution in config$RESOLUTIONS) {
   )
 }
 
-# no default resolution!
 SeuratObj$seurat_clusters <- NULL
 
+if (USE_ADT & ObjName == "ADT") {
+  for (resolution in config$RESOLUTIONS) {
+    SeuratObj <- ADT_louvain(SeuratObj, resolution)
+  }
+}
+# no default resolution!
 
 
-######## RUN UMAP (GEX) ########
+
+######## RUN UMAP ########
 SeuratObj <- RunUMAP(
   SeuratObj, 
   reduction = reduction, 
@@ -96,6 +104,15 @@ SeuratObj <- RunUMAP(
   reduction.name = "umapRNA",
   reduction.key = "umapRNA_"
 )
+
+if (USE_ADT & ObjName == "ADT") {
+  SeuratObj <- RunUMAP(
+    SeuratObj, 
+    nn.name = "weighted.nn",
+    reduction.name = "umapWNN",
+    reduction.key = "UMAPWNN_"
+  )
+}
 
 ################# (CUSTOM) CELL POPULATION: SINGLER ###################
 ref_singler <- celldex::BlueprintEncodeData()
@@ -216,7 +233,7 @@ dev.off()
 DefaultAssay(SeuratObj) <- analyses$projecTILs_assay
 manual_colors <- get_colors(ref_projectils, color_by = "functional.cluster")
 projectils_metadata <- data.frame()
-for (sample_name in unique(SeuratObj$Sample)) {
+for (sample_name in unique(SeuratObj$Sample)[-10]) {
   print(sample_name)
   # subset based on sample and assignment
   query.data <- subset(

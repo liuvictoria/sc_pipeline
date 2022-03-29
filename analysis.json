@@ -2,7 +2,7 @@
 	"pcaADT_dims": 16,
 	"harmonyRNA_dims": 16,
 
-	"markers_assay": "RNA",
+	"markers_assay": "ADT",
 	"viz_clustering": "WNN",
 
 	"clustifyr_assay": "RNApreSCT",
@@ -11,14 +11,15 @@
 	"projecTILs_ref": "TIL",
 	"which_assignment": "clustifyr",
 
-	"cluster_prefix": "WC",
+	"cluster_prefix": "WNNC",
 	"cluster_to_assignment": {
 	},
 
-	"denovo_lineage": "T",
 	"denovo": false,
-	"denovo_superset": "AllPBMC",
-	"denovo_superset_resolution": 0.9,
+	"denovo_lineage": "T",
+	"denovo_clusters_remove":[],
+	"denovo_superset": "PatientPBMC",
+	"denovo_superset_resolution": 0.5,
 	"denovo_subset": ["TCells"],
 	"denovo_pcaGEX_dims": 16,
 	"denovo_run_harmony": true,
@@ -57,7 +58,5 @@
 
 	"None_lineage_markers": {
 	}
-
-
 
 }

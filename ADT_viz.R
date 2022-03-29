@@ -368,7 +368,7 @@ SeuratObj$r <- NULL
 
 
 
-################# (CUSTOM) CELL POPULATIONS: ASSIGNMENT ###############
+################# CELL POPULATIONS: ASSIGNMENT ###############
 if (
   ! is.na(analyses$which_assignment) &
   analyses$which_assignment %in% colnames(SeuratObj@meta.data)
@@ -576,13 +576,14 @@ dev.off()
 
 
 
-################# (CUSTOM) CELL POPULATIONS: DOTPLOTS ###################
+################# CELL POPULATIONS: DOTPLOTS ###################
 dotgraphs <- list()
 for (cluster_name in names(Clusterspecificgenes)) {
   cluster_genes <- Clusterspecificgenes[[cluster_name]]
   D1 <- plot_dotgraph(
     seurat_object = SeuratObj,
-    group_by = paste0("Cluster", analyses$viz_clustering),
+    group_by = "ID",
+    # group_by = paste0("Cluster", analyses$viz_clustering),
     features = cluster_genes, title = cluster_name
   )
   dotgraphs[[cluster_name]] <- D1
@@ -616,7 +617,7 @@ pdf(paste0(
 D2
 dev.off()
 
-########### GEX PREDEFINED CLUSTER FEATURE PLOTS #############
+########### (GEX) PREDEFINED CLUSTER FEATURE PLOTS #############
 # loop each assignment
 for (cluster_name in names(Clusterspecificgenes)) {
   predefined_cluster_plots_GEX <- list()
@@ -652,7 +653,7 @@ for (cluster_name in names(Clusterspecificgenes)) {
 
 }
 
-#################### ADT FEATURE PLOTS #######################
+#################### (ADT) FEATURE PLOTS #######################
 # loop each assignment
 if (USE_ADT) {
 # loop each assignment
@@ -705,7 +706,7 @@ for (cluster_name in names(analyses$ADT_markers)) {
 }
   
 }
-#################### ADT CORRELATION PLOTS ###################
+#################### (ADT) CORRELATION PLOTS ###################
 if (USE_ADT) {
 # loop each assignment
 for (cluster_name in names(analyses$ADT_markers)) {
@@ -737,7 +738,7 @@ for (cluster_name in names(analyses$ADT_markers)) {
   
   pdf(paste0(
     ADTDirectory, cluster_name,
-    " featuremap umap_", analyses$viz_clustering, " ",
+    " ADT RNA correlation ", 
     ObjName, " ", Subset, ".pdf"
   ), width = 26, height = ceiling(length(cluster_genes) / 2) * 10
   )
