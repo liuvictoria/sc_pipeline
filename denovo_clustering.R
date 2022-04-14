@@ -24,10 +24,10 @@ SeuratObj <- readRDS(SeuratObj_filename)
 
 # subset cells / remove unwanted clusters
 # unwanted clusters can be visually identified in parent UMAPs
-# Idents(SeuratObj) <- "Assignment"
+Idents(SeuratObj) <- "Assignment"
 SeuratObj <- subset(
-  SeuratObj, subset = Assignment == analyses$denovo_subset
-  )
+  SeuratObj, idents = analyses$denovo_subset
+)
 for (cluster_remove in analyses$denovo_clusters_remove) {
   SeuratObj <- subset(
     SeuratObj, subset = ClusterRNA != cluster_remove)
@@ -87,13 +87,18 @@ for (resolution in config$RESOLUTIONS) {
 
 SeuratObj$seurat_clusters <- NULL
 
-if (USE_ADT & ObjName == "ADT") {
+if (USE_ADT & ObjName != "RNA") {
+  # ADT
   for (resolution in config$RESOLUTIONS) {
     SeuratObj <- ADT_louvain(SeuratObj, resolution)
   }
+  # WNN
+  for (resolution in config$RESOLUTIONS) {
+    SeuratObj <- WNN_louvain(SeuratObj, resolution)
+  }
 }
 # no default resolution!
-
+SeuratObj$seurat_clusters <- NULL
 
 
 ######## RUN UMAP ########
@@ -105,7 +110,17 @@ SeuratObj <- RunUMAP(
   reduction.key = "umapRNA_"
 )
 
-if (USE_ADT & ObjName == "ADT") {
+if (USE_ADT & ObjName != "RNA") {
+  # ADT
+  SeuratObj <- RunUMAP(
+    SeuratObj, 
+    reduction = "pcaADT", 
+    dims = c(1:analyses$pcaADT_dims),
+    reduction.name = "umapADT",
+    reduction.key = "umapADT_"
+  )
+  
+  # WNN
   SeuratObj <- RunUMAP(
     SeuratObj, 
     nn.name = "weighted.nn",
@@ -117,22 +132,22 @@ if (USE_ADT & ObjName == "ADT") {
 ################# (CUSTOM) CELL POPULATION: SINGLER ###################
 ref_singler <- celldex::BlueprintEncodeData()
 singler_predictions <-SingleR(
-  test = SeuratObj[[analyses$SingleR_assay]]@data, 
-  ref = ref_singler, 
+  test = SeuratObj[[analyses$SingleR_assay]]@data,
+  ref = ref_singler,
   labels = ref_singler$label.main
 )
 
 # add metadata back to Seurat
-SeuratObj$SingleR <- singler_predictions[["pruned.labels"]] 
+SeuratObj$SingleR <- singler_predictions[["pruned.labels"]]
 
 # cell type frequency table
 write.csv(
-  table(SeuratObj$SingleR), 
+  table(SeuratObj$SingleR),
   paste0(
-    singleRDirectory, 
-    analyses$SingleR_assay, "assay SingleR", 
+    singleRDirectory,
+    analyses$SingleR_assay, "assay SingleR",
     " cell type distribution.csv"
-  ), 
+  ),
   row.names = FALSE
 )
 
@@ -145,8 +160,8 @@ P2 <- plot_bargraph (
 )
 
 pdf(paste0(
-  singleRDirectory, 
-  "ALL_SAMPLES ", analyses$SingleR_assay, "assay SingleR", 
+  singleRDirectory,
+  "ALL_SAMPLES ", analyses$SingleR_assay, "assay SingleR",
   " percentage of cells per sample and Assignment barplot.pdf"
 ), width = 6, height = 5.5, family = FONT_FAMILY
 )
@@ -156,8 +171,8 @@ dev.off()
 # QC pruning
 P3 <- plotDeltaDistribution(singler_predictions)
 pdf(paste0(
-  singleRDirectory, 
-  "ALL_SAMPLES ", analyses$SingleR_assay, "assay SingleR", 
+  singleRDirectory,
+  "ALL_SAMPLES ", analyses$SingleR_assay, "assay SingleR",
   " pruning distribution.pdf"
 ), width = 6, height = 5.5, family = FONT_FAMILY
 )
@@ -167,8 +182,8 @@ dev.off()
 # QC heatmap
 P4 <- plotScoreHeatmap(singler_predictions)
 pdf(paste0(
-  singleRDirectory, 
-  "ALL_SAMPLES ", analyses$SingleR_assay, "assay SingleR", 
+  singleRDirectory,
+  "ALL_SAMPLES ", analyses$SingleR_assay, "assay SingleR",
   " score heatmap.pdf"
 ), width = 6, height = 5.5, family = FONT_FAMILY
 )
@@ -177,7 +192,7 @@ dev.off()
 
 
 if (
-  ! is.na(analyses$which_assignment) & 
+  ! is.na(analyses$which_assignment) &
   analyses$which_assignment %in% colnames(SeuratObj@meta.data)
 ) {
   SeuratObj$Assignment <- SeuratObj[[analyses$which_assignment]]
@@ -228,7 +243,7 @@ print(U_TILs1)
 dev.off()
 
 
-# TIME TO ACTUALLY ASTRAL PROJECT 
+# TIME TO ACTUALLY ASTRAL PROJECT
 # project per sample. Don't project on integrated samples
 DefaultAssay(SeuratObj) <- analyses$projecTILs_assay
 manual_colors <- get_colors(ref_projectils, color_by = "functional.cluster")
@@ -238,14 +253,14 @@ for (sample_name in unique(SeuratObj$Sample)[-10]) {
   # subset based on sample and assignment
   query.data <- subset(
     SeuratObj, Sample == sample_name
-    ) 
-  
+    )
+
   # proJECT
   query.projected <- make.projection(query.data, ref = ref_projectils)
   query.projected <- cellstate.predict(
     ref <- ref_projectils, query = query.projected
   )
-  
+
   # save metadata to add back to SeuratObj later
   sample_metadata <- as.data.frame(
     query.projected[[c('functional.cluster', 'functional.cluster.conf')]]
@@ -255,42 +270,42 @@ for (sample_name in unique(SeuratObj$Sample)[-10]) {
   ### PLOTS ###
   # draw projection
   U_TILs2 <- plot.projection(
-    ref_projectils, 
-    query.projected, 
+    ref_projectils,
+    query.projected,
     cols = manual_colors
   )
   pdf(paste0(
-    projTILDirectory, 
-    sample_name, " ", analyses$projecTILs_assay, "assay projecTILs",  
+    projTILDirectory,
+    sample_name, " ", analyses$projecTILs_assay, "assay projecTILs",
     " query projected onto ref UMAP.pdf"
   ), width = 12, height = 7, family = FONT_FAMILY
   )
   print(U_TILs2)
   dev.off()
-  
+
   # cell type frequency table
   write.csv(
-    table(query.projected$functional.cluster), 
+    table(query.projected$functional.cluster),
     paste0(
-      projTILDirectory, 
-      sample_name, " ", analyses$projecTILs_assay, "assay projecTILs", 
+      projTILDirectory,
+      sample_name, " ", analyses$projecTILs_assay, "assay projecTILs",
       " cell type distribution.csv"
-    ), 
+    ),
     row.names = FALSE
   )
 }
 
 # add functional.cluster and functional.cluster.conf info
 SeuratObj <- AddMetaData(
-  SeuratObj, 
-  metadata = projectils_metadata, 
+  SeuratObj,
+  metadata = projectils_metadata,
   col.name = c("projecTILs", "projecTILs_conf")
   )
 
-# add back NK cell info 
-# (BTW, for TTumor, do clustifyr FIRST, to get NK designations)
+# add back NK cell info
+# (BTW, for TTumor, do SingleR FIRST, to get NK designations)
 SeuratObj$projecTILs <- ifelse(
-  is.na(SeuratObj$projecTILs) & 
+  is.na(SeuratObj$projecTILs) &
     grepl("NK", SeuratObj$Assignment, fixed = TRUE),
   "NK-like", SeuratObj$projecTILs
 )
@@ -305,8 +320,8 @@ P1 <- plot_bargraph (
 )
 
 pdf(paste0(
-  projTILDirectory, 
-  "ALL_SAMPLES ", analyses$projecTILs_assay, "assay projecTILs", 
+  projTILDirectory,
+  "ALL_SAMPLES ", analyses$projecTILs_assay, "assay projecTILs",
   " percentage of cells per sample and Assignment barplot.pdf"
 ), width = 10, height = 7, family = FONT_FAMILY
 )
@@ -314,7 +329,7 @@ print(P1)
 dev.off()
 
 if (
-  ! is.na(analyses$which_assignment) & 
+  ! is.na(analyses$which_assignment) &
   analyses$which_assignment %in% colnames(SeuratObj@meta.data)
 ) {
   SeuratObj$Assignment <- SeuratObj[[analyses$which_assignment]]

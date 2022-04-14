@@ -40,6 +40,7 @@ library(easypackages)
 # install.packages("magick")
 # install.packages("gmailr", repos="http://cran.r-project.org")
 # install.packages("rjson")
+# install.packages("PerformanceAnalytics")
 
 MyPackages <- c(
   "dplyr", "ggplot2", "ggpubr", "gridExtra", "viridis", "egg",
@@ -50,7 +51,8 @@ MyPackages <- c(
   "glmGamPoi", "gmailr", "rjson", "here", "SeuratDisk",
   "gplots", "clustifyr", "fgsea", "purrr", "clustree",
   "SingleR", "celldex", "ProjecTILs", "biomaRt", "data.table",
-  "umap", "pheatmap", "scDblFinder", "miQC", "SeuratWrappers"
+  "umap", "pheatmap", "scDblFinder", "miQC", "SeuratWrappers",
+  "PerformanceAnalytics"
 )
 
 # similar to libaries, but will install package as well
@@ -58,6 +60,7 @@ packages(MyPackages)
 
 # get experiment parameters
 config <- fromJSON(file = here("config.json"))
+master <- fromJSON(file = here("master.json"))
 
 # Nour's palette. Install and load
 NourpalDirectory <- config$NourpalDirectory
@@ -80,7 +83,7 @@ FONT_FAMILY <- config$FONT_FAMILY
 # files to analyze
 FILES = config$FILES
 
-ADT_PRESENT <- config$ADT_PRESENT
+ADT_PRESENT <- master$ADT_PRESENT
 USE_ADT <- config$USE_ADT
 if (USE_ADT) {
   regexp <- "[[:digit:]]+"
@@ -131,7 +134,7 @@ RiboQCDirectory <- paste0(QCDirectory, "RiboQC/")
 if (! dir.exists(RiboQCDirectory)) dir.create(RiboQCDirectory)
 ElbowDirectory <- paste0(OutputDirectory, "/ElbowPlots/")
 if (! dir.exists(ElbowDirectory)) dir.create(ElbowDirectory)
-densityplotDirectory <- paste0(OutputDirectory, "/DensityPlots/")
+densityplotDirectory <- paste0(OutputDirectory, "/BarPlots/")
 if (! dir.exists(densityplotDirectory)) dir.create(densityplotDirectory)
 
 heatDirectory <- paste0(OutputDirectory, "/HeatMaps/")
@@ -164,6 +167,11 @@ if (! dir.exists(ADTDirectory) & config$USE_ADT == TRUE) {
   dir.create(ADTDirectory)
 }
 
+SubtypeCorrDirectory <- paste0(OutputDirectory, "/SubtypeCorrelations/")
+if (config$aggr_cells & config$preprocess_existing_RDS) {
+  dir.create(SubtypeCorrDirectory)
+}
+
 ##################### GENERIC HELPER FUNCTIONS ######################
 
 {
@@ -185,14 +193,46 @@ get_height <- function(category) {
 get_colors <- function(
   seurat_object,
   color_by,
+  subtype_by,
+  color_scheme = "nourpal",
   color_reverse = FALSE
 ) {
-  colors = Nour_pal("all", reverse = color_reverse)(
-    length(unique(as.vector(as.matrix(seurat_object[[color_by]]))))
-  )
-  names(colors) = sort(unique(
-    as.vector(as.matrix(seurat_object[[color_by]]))
+  if (color_scheme == "nourpal") {
+    colors = Nour_pal("all", reverse = color_reverse)(
+      length(unique(as.vector(as.matrix(seurat_object[[color_by]]))))
+    )
+    names(colors) = sort(unique(
+      as.vector(as.matrix(seurat_object[[color_by]]))
     ))
+  }
+  else if (color_scheme == "chromatose") {
+    colors <- list()
+    samples <- unique(as.vector(as.matrix(seurat_object[[color_by]])))
+    for (idx_subtype in 1:length(subtype_by)) {
+      subtype <- subtype_by[[idx_subtype]]
+      color_hex <- master$chromatose[[
+        master$chromatose_keys[[idx_subtype]]
+      ]]
+      if (color_reverse) {
+        color_hex <- rev(color_hex)
+      }
+      color_sample_names <- c()
+      for (sample in samples){
+        if (grepl(subtype, sample, fixed = TRUE)) {
+          color_sample_names <- c(color_sample_names, sample)
+        }
+      }
+      for (idx_sample in 1:length(color_sample_names)) {
+        sample <- color_sample_names[idx_sample]
+        idx_color <- length(color_hex) %/% (length(color_sample_names) + 1) * 
+          (idx_sample) + 1
+        
+        colors[[sample]] <- color_hex[idx_color]
+      }
+    }
+    colors <- colors[order(match(colors, samples))]
+  }
+  
   return (colors)
 }
 
@@ -204,6 +244,9 @@ get_top_cluster_markers <- function(
     group_by(cluster) %>% 
     top_n(n = n, wt = avg_log2FC)
   
+  top_n_markers <- top_n_markers[order(top_n_markers$cluster),]
+    
+  
   top_n_markers$cluster <- as.character(top_n_markers$cluster)
   top_n_markers <- top_n_markers[order(top_n_markers$cluster), ]
   return (top_n_markers)
@@ -213,11 +256,17 @@ get_top_cluster_markers <- function(
 
 ############### GET CASE CORRECT FEATURES ##############
 case_sensitive_features <- function(
-  seurat_object, features, assay = "RNA"
+  seurat_object = NULL, features, reference = NULL, assay = "RNA"
 ) {
-  DefaultAssay(SeuratObj) <- assay
   final_features <- list()
-  for (seurat_gene in rownames(SeuratObj)) {
+  
+  if (! is.null(seurat_object)) {
+    DefaultAssay(seurat_object) <- assay
+    reference <- rownames(seurat_object)
+  }
+  
+
+  for (seurat_gene in reference) {
     idx_match <- match(
       tolower(seurat_gene),
       tolower(features),
@@ -590,6 +639,8 @@ plot_umap <- function(
   seurat_object, group_by,
   title, xlab, ylab,
   legend_position, reduction,
+  subtype_by,
+  color_scheme = "nourpal",
   color_reverse = FALSE,
   title_font_size = 20, x_font_size = 20, y_font_size = 20, 
   pt_size = NULL, split_by = NULL, ncol_dimplot = 1, ncol_guide = 1,
@@ -597,8 +648,14 @@ plot_umap <- function(
 ) {
   color_by <- group_by
   # get colors
-  manual_colors <- get_colors(seurat_object, color_by, color_reverse)
-  
+  manual_colors <- get_colors(
+    seurat_object = seurat_object, 
+    color_by = color_by, 
+    color_scheme = color_scheme,
+    subtype_by = subtype_by,
+    color_reverse = color_reverse
+    )
+
   plot_object <- DimPlot(
     seurat_object, reduction = reduction, group.by = group_by,
     cols = manual_colors,
@@ -635,12 +692,15 @@ plot_dotgraph <- function (
   x_text_angle = 45,
   dot_scale = 5, scale = TRUE,
   color_palette_option = "plasma",
-  assay = "RNA"
+  assay = "RNA", features_sorted = FALSE
 ) {
   DefaultAssay(seurat_object) <- assay
-  features <- case_sensitive_features(seurat_object, features)
-  features <- unlist(unname(features))
-  print(names(features))
+  if (features_sorted == FALSE) {
+    features <- case_sensitive_features(
+      seurat_object, features, assay = assay
+      )
+    features <- unlist(unname(features))
+  }
   plot_object <- DotPlot(
     seurat_object, group.by = group_by, dot.scale = dot_scale,
     features = features, scale = scale
@@ -683,7 +743,7 @@ plot_featureplot <- function(
   assay = "RNA"
 ) {
   DefaultAssay(seurat_object) <- assay
-
+  
   feature_gene <- case_sensitive_features(
     seurat_object,
     c(feature_gene),
@@ -727,6 +787,8 @@ plot_featureplot <- function(
 plot_correlation <- function(
   SeuratObj, 
   x, y, split_by, lab_x, lab_y,
+  rna_threshold = 0,
+  adt_threshold = 0,
   slot = "scale.data",
   method = "pearson"
 ) {
@@ -743,6 +805,7 @@ plot_correlation <- function(
   df <- FetchData(
     SeuratObj, vars = c(x, y, split_by), slot = slot
   )
+  df <- df[df[x] > rna_threshold & df[y] > adt_threshold,]
   
   plot <- ggplot(
     df, 
@@ -791,14 +854,15 @@ plot_heatmap <- function(
   subset <- subset(seurat_object, downsample = downsample_n)
   if (grepl("RNA", cluster, fixed = TRUE)) {
     sorted_barcodes <- names(sort(subset$ClusterRNA))
+  } else if (grepl("ADT", cluster, fixed = TRUE)) {
+    sorted_barcodes <- names(sort(subset$ClusterADT))
   } else if (grepl("WNN", cluster, fixed = TRUE)) {
     sorted_barcodes <- names(sort(subset$ClusterWNN))
   }
   
-  
   # plot data rows are genes, cols are cells
   plot_data <- as.data.frame(subset@assays$RNA@scale.data)
-  plot_data <- plot_data[top_n_markers$gene, ]
+  plot_data <- plot_data[top_n_markers$marker, ]
   plot_data <- na.omit(plot_data)
   plot_data <- plot_data - rowMeans(plot_data)
   
@@ -841,8 +905,8 @@ plot_heatmap <- function(
   row_anno <- rowAnnotation(
     # only label select genes (defined by input args)
     sel = anno_mark(
-      at = match(label_n_markers$gene, row.names(plot_data)),
-      labels = label_n_markers$gene,
+      at = match(label_n_markers$marker, row.names(plot_data)),
+      labels = label_n_markers$marker,
       labels_gp = gpar(col = "black", fontsize = 9)
     )
   )
@@ -954,9 +1018,112 @@ theme_min2 <- function(base_size = 11, base_family = "") {
 ###################### GEX PREPROCESSING FUNCTIONS ###################
 # created here, so as to avoid code duplication
 {
+############ SCDBLFINDER & QC ##############
+GEX_QC <- function(SeuratObjMYSC, file) {
+  # determine doublets, need to change to sce
+  SeuratObjMYSC.sce <- as.SingleCellExperiment(SeuratObjMYSC)
+  sce <- scDblFinder(SeuratObjMYSC.sce)
+  
+  # Converting back to Seurat Obj
+  SeuratObjMYSC <- as.Seurat(sce)
+  Idents(SeuratObjMYSC) <- SeuratObjMYSC$orig.ident
+  DefaultAssay(SeuratObjMYSC) <- "RNA"
+  
+  # SCT
+  if (SCT) {
+    SeuratObjMYSC <- RenameAssays(SeuratObjMYSC, RNA = "RNApreSCT")
+    SeuratObjMYSC <- SeuratObjMYSC %>%
+      SCTransform(
+        assay = "RNApreSCT", method = "glmGamPoi", 
+        new.assay.name = "RNA",
+        vst.flavor = "v2", verbose = FALSE
+      )
+  } else {
+    SeuratObjMYSC <- SeuratObjMYSC %>% 
+      NormalizeData(assay = "RNA") %>%
+      FindVariableFeatures(assay = "RNA") %>%
+      ScaleData(assay = "RNA")
+  }
+  
+  #Run PCA (code in utils)
+  SeuratObjMYSC <- GEX_pca(SeuratObjMYSC, file)
+  
+  
+  # QC for mitochondrial RNA
+  SeuratObjMYSC$log10GenesPerUMI <- log10(SeuratObjMYSC$nFeature_RNA) / 
+    log10(SeuratObjMYSC$nCount_RNA)
+  
+  SeuratObjMYSC$percent.mt <- PercentageFeatureSet(
+    SeuratObjMYSC, pattern = "^MT-"
+  )
+  SeuratObjMYSC$mito_ratio <- SeuratObjMYSC$percent.mt / 100
+  
+  SeuratObjMYSC$ribo_ratio <- PercentageFeatureSet(
+    SeuratObjMYSC, pattern = "^RP[LS]"
+  )
+  SeuratObjMYSC$ribo_ratio <- SeuratObjMYSC$ribo_ratio / 100
+  
+  # miQC
+  SeuratObjMYSC <- RunMiQC(
+    SeuratObjMYSC, 
+    percent.mt = "percent.mt", 
+    nFeature_RNA = "nFeature_RNA",
+    backup.option = "percent",
+    backup.percent = config$mito_ratio * 100
+  )
+  
+  if (max(SeuratObjMYSC$miQC.probability) > 0) {
+    # plots
+    QC1 <- PlotMiQC(
+      SeuratObjMYSC, color.by = "miQC.probability"
+    ) + 
+      ggplot2::scale_color_gradient(low = "grey", high = "purple")
+    
+    pdf(paste0(
+      QCDirectory, file,
+      " Scatterplot - Determining Probability of Low Quality Cells.pdf"
+    ), width = 8, height = 5.5, family = "ArialMT")
+    print(QC1)
+    dev.off()
+    
+    QC2 <- PlotMiQC(SeuratObjMYSC, color.by = "miQC.keep")
+    pdf(paste0(
+      QCDirectory, file,
+      " Scatterplot - Cells Passing QC.pdf"
+    ), width = 8, height = 5.5, family = "ArialMT")
+    print(QC2)
+    dev.off()
+  }
+  
+  # save plot
+  D <- DimPlot(
+    SeuratObjMYSC, split.by = "scDblFinder.class",
+    order = TRUE, shuffle = TRUE
+  )
+  pdf(paste0(
+    QCDirectory, file,
+    "Doublet status dimplot.pdf"
+  ), width = 8, height = 5.5, family = FONT_FAMILY
+  )
+  print(D)
+  dev.off()
+  
+  # subset based on miQC
+  SeuratObjMYSC <- subset(SeuratObjMYSC, miQC.keep == "keep")
+  
+  # rename columns
+  SeuratObjMYSC$DoubletStatus <- SeuratObjMYSC$scDblFinder.class
+  SeuratObjMYSC$scDblFinder.class <- NULL
+  SeuratObjMYSC$scDblFinder.score <- NULL
+  SeuratObjMYSC$scDblFinder.cxds_score <- NULL
+  SeuratObjMYSC$scDblFinder.weighted <- NULL
+  SeuratObjMYSC$miQC.probability <- NULL
+  
+  return (SeuratObjMYSC)
+}
+  
 ############ NORMALIZATION ##############
 GEX_normalization <- function(SeuratObj){
-  DefaultAssay(SeuratObj) <- "RNA"
   
   # SCT for GEX
   if (SCT) {
@@ -977,6 +1144,7 @@ GEX_normalization <- function(SeuratObj){
       ScaleData(assay = "RNA")
   }
   
+  DefaultAssay(SeuratObj) <- "RNA"
   
   # plot variable features
   top10 <- head(VariableFeatures(SeuratObj), 10, assay = "RNA")
@@ -1040,7 +1208,7 @@ GEX_louvain <- function(
 }
 
 
-###################### ADT PREPROCESSING FUNCTIONS ###################
+###################### ADT + WNN PREPROCESSING FUNCTIONS ###################
 {
 #################### ADT BATCH INTEGRATION #################
   
@@ -1101,7 +1269,7 @@ ADT_integrate <- function(SeuratObj) {
     " elbow plot after CC scaling integration and pca (ADT).pdf"
   ), width = 12, height = 4.5, family = FONT_FAMILY
   )
-  E2
+  print(E2)
   dev.off()
   
   return (SeuratObj)
@@ -1110,6 +1278,24 @@ ADT_integrate <- function(SeuratObj) {
   
 ####################### ADT LOUVAIN #####################
 ADT_louvain <- function(
+    SeuratObj, resolution,
+    reduction = "pcaADT"
+) {
+  DefaultAssay(SeuratObj) <- "ADT"
+  
+  SeuratObj <- SeuratObj %>%
+    FindNeighbors(
+      reduction = reduction, 
+      dims = c(1:analyses$pcaADT_dims)
+    ) %>%
+    FindClusters(resolution = resolution)
+  
+  return (SeuratObj)
+}
+
+
+####################### WNN LOUVAIN #####################
+WNN_louvain <- function(
   SeuratObj, resolution, reduction_list = list("harmonyRNA", "pcaADT"),
   algorithm = 3, verbose = FALSE
 ) {
@@ -1149,6 +1335,51 @@ cluster_markers <- function(
     test.use = "wilcox", 
     only.pos = TRUE
   )
+  markers$marker <- markers$gene
+  markers$gene <- NULL
   return (markers)
   }
+}
+
+####################### MISC FUNCTIONS ######################
+atlas_QC <- function() {
+  # make sure we are indeed doing QC on a predefined atlas
+  stopifnot(config$preprocess_existing_RDS)
+  
+  # to contain preprocessed samples
+  SeuratSamples <- list()
+  # load atlas
+  seurat_object <- readRDS(paste0(
+    RobjDir, config$existing_RDS_name
+  ))
+  # split by sample
+  seurat_list <- SplitObject(seurat_object, split.by = "Sample")
+  
+  for (idx in 1:length(seurat_list)) {
+    # get sample
+    seurat_split <- seurat_list[idx][[1]]
+    sample_name <- unique(seurat_split$Sample)[1]
+    print(paste0("Sample", sample_name))
+    # make sure there are enough cells and it's not a sample to be removed
+    if (
+      ncol(seurat_split) > 55 & 
+      ! sample_name %in% config$existing_RDS_remove_cluster
+    ) {
+      # QC
+      seurat_split <- GEX_QC(seurat_split, sample_name)
+
+      # save, add to list
+      saveRDS(
+        seurat_split,
+        file = paste0(RobjDirectory, sample_name, ".rds")
+      )
+      SeuratSamples[[length(SeuratSamples) + 1]] <- seurat_split
+      config$FILES[[length(SeuratSamples)]] <<- sample_name
+      print(paste0("config file looks like: ", config$FILES))
+    } else {
+      print ("not enough cells, moving onto next sample")
+    }
+  }
+  
+  return (SeuratSamples)
 }

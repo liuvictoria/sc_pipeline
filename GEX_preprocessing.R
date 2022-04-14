@@ -1,154 +1,61 @@
 ################# LOAD UTILS  ##############
-source("~/Box/Yun lab projects/victoria_liu/matching_patients/R_Code/utils.R")
+source("~/Documents/victoria_liu/matching_patients/R_Code/utils.R")
 analyses <- fromJSON(file = here("analysis.json"))
 SeuratSamples <- list()
 
 ######### QC + Doublet removal ########
-if (!config$aggr_cells) {
+if (!config$aggr_cells & !config$preprocess_existing_RDS) {
   
-for(i in 1:length(FILES)){
-  print(FILES[i])
-  # read in GEX (and also ADT, if applicable)
-  MYSC <- Read10X(
-    data.dir = paste0(
-      Directory,
-      "/Data/",
-      FILES[i], "/",
-      config$count_matrices_dir, "/"
-    )
-  ) 
-  
-  # if there is also ADT data
-  regexp <- "[[:digit:]]+"
-  both_assays <- ADT_PRESENT[[str_extract(FILES[i], regexp)]]
-  
-  
-  # create Seurat obj
-  # GEX
-  SeuratObjMYSC <- CreateSeuratObject(
-    counts = if (both_assays) MYSC[["Gene Expression"]] else MYSC, 
-    min.features = 100, project = FILES[i]
-  )
-  
-  if (USE_ADT) {  
-    # ADT data, for removing bad cells QC
-    SeuratObjMYSC[["ADT"]] <- CreateAssayObject(
-      MYSC[["Antibody Capture"]][, colnames(x = SeuratObjMYSC)])
-  }
-  
-  # subset ADT, if present
-  if (USE_ADT) {  
-    SeuratObjMYSC <- subset(
-      SeuratObjMYSC, 
-      subset = nFeature_ADT > config$nFeature_ADT
-    )
-  }
-  
-  # determine doublets, need to change to sce
-  SeuratObjMYSC.sce <- as.SingleCellExperiment(SeuratObjMYSC)
-  sce <- scDblFinder(SeuratObjMYSC.sce)
-  
-  # Converting back to Seurat Obj
-  SeuratObjMYSC <- as.Seurat(sce)
-  Idents(SeuratObjMYSC) <- SeuratObjMYSC$orig.ident
-  DefaultAssay(SeuratObjMYSC) <- "RNA"
-  
-  # SCT
-  if (SCT) {
-    SeuratObjMYSC <- RenameAssays(SeuratObjMYSC, RNA = "RNApreSCT")
-    SeuratObjMYSC <- SeuratObjMYSC %>%
-      SCTransform(
-        assay = "RNApreSCT", method = "glmGamPoi", 
-        new.assay.name = "RNA",
-        vst.flavor = "v2", verbose = FALSE
+  for(i in 1:length(FILES)){
+    print(FILES[i])
+    # read in GEX (and also ADT, if applicable)
+    MYSC <- Read10X(
+      data.dir = paste0(
+        Directory,
+        "/Data/",
+        FILES[i], "/",
+        config$count_matrices_dir, "/"
       )
-  } else {
-    SeuratObjMYSC <- SeuratObjMYSC %>% 
-      NormalizeData(assay = "RNA") %>%
-      FindVariableFeatures(assay = "RNA") %>%
-      ScaleData(assay = "RNA")
+    ) 
+    
+    # if there is also ADT data
+    regexp <- "[[:digit:]]+"
+    both_assays <- ADT_PRESENT[[str_extract(FILES[i], regexp)]]
+    
+    
+    # create Seurat obj
+    # GEX
+    SeuratObjMYSC <- CreateSeuratObject(
+      counts = if (both_assays) MYSC[["Gene Expression"]] else MYSC, 
+      min.features = 100, project = FILES[i]
+    )
+    
+    if (USE_ADT) {  
+      # ADT data, for removing bad cells QC
+      SeuratObjMYSC[["ADT"]] <- CreateAssayObject(
+        MYSC[["Antibody Capture"]][, colnames(x = SeuratObjMYSC)])
+    }
+    
+    # subset ADT, if present
+    if (USE_ADT) {  
+      SeuratObjMYSC <- subset(
+        SeuratObjMYSC, 
+        subset = nFeature_ADT > config$nFeature_ADT
+      )
+    }
+    
+    SeuratObjMYSC <- GEX_QC(SeuratObjMYSC, FILES[i])
+    
+    # save object
+    saveRDS(SeuratObjMYSC, file = paste0(RobjDirectory, FILES[i], ".rds"))
+    SeuratSamples[[i]] <- SeuratObjMYSC
   }
   
-  #Run PCA (code in utils)
-  SeuratObjMYSC <- GEX_pca(SeuratObjMYSC, FILES[i])
-  
-  
-  # QC for mitochondrial RNA
-  SeuratObjMYSC$log10GenesPerUMI <- log10(SeuratObjMYSC$nFeature_RNA) / 
-    log10(SeuratObjMYSC$nCount_RNA)
-  
-  SeuratObjMYSC$percent.mt <- PercentageFeatureSet(
-    SeuratObjMYSC, pattern = "^MT-"
-  )
-  SeuratObjMYSC$mito_ratio <- SeuratObjMYSC$percent.mt / 100
-  
-  SeuratObjMYSC$ribo_ratio <- PercentageFeatureSet(
-    SeuratObjMYSC, pattern = "^RP[LS]"
-  )
-  SeuratObjMYSC$ribo_ratio <- SeuratObjMYSC$ribo_ratio / 100
-  
-  # miQC
-  SeuratObjMYSC <- RunMiQC(
-    SeuratObjMYSC, 
-    percent.mt = "percent.mt", 
-    nFeature_RNA = "nFeature_RNA",
-    backup.option = "percent",
-    backup.percent = config$mito_ratio * 100
-  )
-  
-  if (max(SeuratObjMYSC$miQC.probability) > 0) {
-    # plots
-    QC1 <- PlotMiQC(
-      SeuratObjMYSC, color.by = "miQC.probability"
-    ) + 
-      ggplot2::scale_color_gradient(low = "grey", high = "purple")
-    
-    pdf(paste0(
-      QCDirectory, FILES[i],
-      " Scatterplot - Determining Probability of Low Quality Cells.pdf"
-    ), width = 8, height = 5.5, family = "ArialMT")
-    print(QC1)
-    dev.off()
-    
-    QC2 <- PlotMiQC(SeuratObjMYSC, color.by = "miQC.keep")
-    pdf(paste0(
-      QCDirectory, FILES[i],
-      " Scatterplot - Cells Passing QC.pdf"
-    ), width = 8, height = 5.5, family = "ArialMT")
-    print(QC2)
-    dev.off()
-  }
-  
-  # save plot
-  D <- DimPlot(
-    SeuratObjMYSC, split.by = "scDblFinder.class",
-    order = TRUE, shuffle = TRUE
-  )
-  pdf(paste0(
-    QCDirectory, FILES[i],
-    "Doublet status dimplot.pdf"
-  ), width = 8, height = 5.5, family = FONT_FAMILY
-  )
-  print(D)
-  dev.off()
-  
-  # subset based on miQC
-  SeuratObjMYSC <- subset(SeuratObjMYSC, miQC.keep == "keep")
-  
-  # rename columns
-  SeuratObjMYSC$DoubletStatus <- SeuratObjMYSC$scDblFinder.class
-  SeuratObjMYSC$scDblFinder.class <- NULL
-  SeuratObjMYSC$scDblFinder.score <- NULL
-  SeuratObjMYSC$scDblFinder.cxds_score <- NULL
-  SeuratObjMYSC$scDblFinder.weighted <- NULL
-  SeuratObjMYSC$miQC.probability <- NULL
-  
-  # save object
-  saveRDS(SeuratObjMYSC, file = paste0(RobjDirectory, FILES[i], ".rds"))
-  SeuratSamples[[i]] <- SeuratObjMYSC
+} else if (config$preprocess_existing_RDS) {
+SeuratSamples <- atlas_QC()
 }
 
-}
+
 ######## AGGREGATION ########## 
 if (config$aggr_cells) {
   stopifnot(length(config$aggr_FILES) > 0)
@@ -156,9 +63,18 @@ if (config$aggr_cells) {
     aggr_file <- config$aggr_FILES[idx]
     aggr_filename <- paste0(
       RobjDir, aggr_file, "/",
-      "GEX", aggr_file, "_res0.9.rds"
+      "GEX", aggr_file, "_res", 
+      config$aggr_resolutions[idx], ".rds"
     )
-    SeuratSamples[[idx]] <- readRDS(aggr_filename)
+    print(paste0("reading RDS file ", aggr_filename))
+    SeuratSample <- readRDS(aggr_filename)
+    DefaultAssay(SeuratSample) <- "RNApreSCT"
+    
+    SeuratSample <- DietSeurat(
+        SeuratSample, assays = c("RNApreSCT", "ADT")
+      )
+    
+    SeuratSamples[[idx]] <- SeuratSample
   }
   
   SeuratObj <- merge(
@@ -167,14 +83,15 @@ if (config$aggr_cells) {
   )
   
   # subset immune cells as indicated
-  # default identity is double status (for now)
+  # default identity is assignment
   Idents(SeuratObj) <- SeuratObj$Assignment
-  
-  # remove doublets from Seurat data structure 
+  aggr_categories <- intersect(
+    unique(SeuratObj$Assignment), config$aggr_categories
+    )
   SeuratObj <- subset(
     SeuratObj, 
-    cells = WhichCells(SeuratObj, idents = config$aggr_categories)
-  )
+    cells = WhichCells(SeuratObj, idents = aggr_categories)
+    )
   
 } else {
   # merge samples into one object
@@ -211,11 +128,12 @@ if (! config$aggr_cells) {
   )
 }
 
+if (! config$preprocess_existing_RDS) {
 # extract current metadata
 CellInfo <- SeuratObj@meta.data
 
 # add sample information
-sample_info <- config$sample_info
+sample_info <- master$sample_info
 
 CellInfo$Sample <- NA
 for (i in 1:length(sample_info)) {
@@ -231,7 +149,7 @@ SeuratObj <- AddMetaData(
 )
 
 # add patient information (anonymized, deidentified)
-patient_info <- config$patient_info
+patient_info <- master$patient_info
 
 CellInfo$Patient <- NA
 for (i in 1:length(patient_info)) {
@@ -247,7 +165,7 @@ SeuratObj <- AddMetaData(
 )
 
 #add group information
-group_info <- config$group_info
+group_info <- master$group_info
 
 CellInfo$Group <- NA
 for (i in 1:length(group_info)) {
@@ -261,7 +179,7 @@ names(Group) <- colnames(x = SeuratObj)
 SeuratObj <- AddMetaData(
   object = SeuratObj, metadata = Group, col.name = "Group"
 )
-
+}
 
 # add categories for ribosomal expression (for dimplot)
 percentage_to_category <- function(percentage) {

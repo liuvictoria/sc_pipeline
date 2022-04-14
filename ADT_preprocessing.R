@@ -74,14 +74,30 @@ SeuratObj <- RenameAssays(SeuratObj, ADT = "ADTpreInt")
 SeuratObj <- ADT_integrate(SeuratObj)
 
 ######## LOUVAIN CLUSTERING ########
+# ADT
 for (resolution in config$RESOLUTIONS) {
   SeuratObj <- ADT_louvain(SeuratObj, resolution)
+}
+# WNN
+for (resolution in config$RESOLUTIONS) {
+  SeuratObj <- WNN_louvain(SeuratObj, resolution)
 }
 
 # no default resolution!
 SeuratObj$seurat_clusters <- NULL
 
 ######## RUN UMAP ########
+# ADT
+SeuratObj <- RunUMAP(
+  SeuratObj, 
+  reduction = "pcaADT", 
+  dims = c(1:analyses$pcaADT_dims),
+  reduction.name = "umapADT",
+  reduction.key = "umapADT_"
+)
+
+
+# WNN
 SeuratObj <- RunUMAP(
   SeuratObj, 
   nn.name = "weighted.nn",
