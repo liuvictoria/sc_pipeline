@@ -51,7 +51,7 @@ if (!config$aggr_cells & !config$preprocess_existing_RDS) {
     SeuratSamples[[i]] <- SeuratObjMYSC
   }
   
-} else if (config$preprocess_existing_RDS) {
+} else if (config$preprocess_existing_RDS & !config$aggr_cells) {
 SeuratSamples <- atlas_QC()
 }
 

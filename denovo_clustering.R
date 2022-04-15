@@ -1,5 +1,5 @@
 ################# LOAD UTILS  ##############
-source("~/Box/Yun lab projects/victoria_liu/matching_patients/R_Code/utils.R")
+source("~/Documents/victoria_liu/matching_patients/R_Code/utils.R")
 
 # laod visualizing parameters
 analyses <- fromJSON(file = here("analysis.json"))

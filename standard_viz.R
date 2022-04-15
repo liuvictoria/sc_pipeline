@@ -314,7 +314,8 @@ pdf(paste0(
   UMAPDirectory, ObjName, Subset,
   "_res", RESOLUTION, "_",
   analyses$viz_clustering, "Clusters_UMAP_Iteration_by_sample.pdf"
-), width = 12, height = 8, family = FONT_FAMILY
+), width = 12, height = 2.5 * length(unique(SeuratObj$Sample)), 
+  family = FONT_FAMILY
 )
 print(U3)
 dev.off()
@@ -572,7 +573,8 @@ pdf(paste0(
   "Clusters_Assignment (", 
   analyses$which_assignment,
   ") UMAP Iteration by sample.pdf"
-), width = 12, height = 12, family = FONT_FAMILY
+), width = 12, height = 2.5 * length(unique(SeuratObj$Sample)), 
+  family = FONT_FAMILY
 )
 print(U5)
 dev.off()
@@ -596,7 +598,7 @@ pdf(paste0(
   "Clusters_Assignment (", 
   analyses$which_assignment,
   ") UMAP Iteration by assignment.pdf"
-), width = 12, height = 30, family = FONT_FAMILY
+), width = 12, height = 2.5 * length(unique(SeuratObj$Sample)), family = FONT_FAMILY
 )
 print(U6)
 dev.off()
@@ -889,18 +891,44 @@ for (cluster_name in names(Clusterspecificgenes)) {
 
 }
 
-#################### CCORRELATION BETWEEN CELL TYPES ###################
+#################### CORRELATION BETWEEN CELL TYPES ###################
 if (config$aggr_cells & config$preprocess_existing_RDS) {
   my_data <- table(SeuratObj$Sample, SeuratObj$Assignment)
-  SC1 <- chart.Correlation(my_data, histogram = TRUE, pch = 19)
+  # take away samples without T cells
+  my_data <- my_data[c(-5, -10, -11, -14, -15, -17),]
+  
+  # create custom column order
+  col_order <- c(
+    unique(seurat_object$Assignment), unique(seurat_object2$Assignment)
+  )
+  # CD4 naive cells have too few counts
+  col_order <- col_order[!is.na(col_order) & col_order != "CD4_NaiveLike"]
+  my_data <- my_data[, col_order]
   pdf(paste0(
     SubtypeCorrDirectory, ObjName, Subset, 
     "Subtype Correlation plot.pdf"
   ), width = 40, height = 40, family = FONT_FAMILY
   )
-  print(SC1)
+  chart.Correlation(my_data, histogram = TRUE, method = "pearson")
   dev.off()
+  
+  
+  pdf(paste0(
+    SubtypeCorrDirectory, ObjName, Subset, 
+    "Subtype Correlation heatmap.pdf"
+  ), width = 15, height = 15, family = FONT_FAMILY
+  )
+  res <- cor(my_data)
+  corrplot(
+    res, type = "upper", order = "original", 
+    tl.col = "black", tl.srt = 45
+    )
+  dev.off()
+  
+
 }
+
+
 
 ######### RIBO RATIO QC ##########
 # umap
@@ -1033,7 +1061,7 @@ dev.off()
 
 ################# CELL CYCLE SORTING ###################
 
-U6 <- plot_umap (
+U7 <- plot_umap (
   seurat_object = SeuratObj, group_by = "Phase",
   reduction = paste0("umap", analyses$viz_clustering),
   title = "Seurat Cell Cycle scoring", xlab = "UMAP1", ylab = "UMAP2",
@@ -1046,9 +1074,9 @@ U6 <- plot_umap (
 pdf(paste0(
   UMAPDirectory, ObjName, Subset, 
   "CellCycle UMAP by Iteration Sample.pdf"
-), width = 12, height = 12, family = FONT_FAMILY
+), width = 12, height = 2.5 * length(unique(SeuratObj$Sample)), family = FONT_FAMILY
 )
-print(U6)
+print(U7)
 dev.off()
 
 

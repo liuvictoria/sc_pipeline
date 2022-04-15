@@ -28,6 +28,7 @@ library(easypackages)
 # install.packages("tidyverse")
 # install.packages('clustree') 
 # install.packages("pheatmap")
+# install.packages("corrplot")
 
 
 # remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')
@@ -52,7 +53,7 @@ MyPackages <- c(
   "gplots", "clustifyr", "fgsea", "purrr", "clustree",
   "SingleR", "celldex", "ProjecTILs", "biomaRt", "data.table",
   "umap", "pheatmap", "scDblFinder", "miQC", "SeuratWrappers",
-  "PerformanceAnalytics"
+  "PerformanceAnalytics", "corrplot"
 )
 
 # similar to libaries, but will install package as well
@@ -1341,7 +1342,26 @@ cluster_markers <- function(
   }
 }
 
-####################### MISC FUNCTIONS ######################
+####################### ATLAS FUNCTIONS ######################
+add_atlas_TMB <- function(SeuratObj) {
+  CellInfo <- SeuratObj@meta.data
+  for (sample in unique(SeuratObj$Sample)) {
+    tmb_file_contents <- readLines(paste0(
+      config$TMBDirectory, sample, "-C_1.fq.gz_snp_indel.TMB_results.txt"
+      ))
+                                   
+    tmb <- strsplit(
+     tmb_file_contents[grepl("TMB= ", tmb_file_contents)], "TMB= "
+    )[[1]][2]
+    tmb <- as.double(tmb)
+    
+    CellInfo[["TMB_SampleWide"]][
+      CellInfo$Sample == sample
+    ] <- tmb
+  }
+
+}
+
 atlas_QC <- function() {
   # make sure we are indeed doing QC on a predefined atlas
   stopifnot(config$preprocess_existing_RDS)
@@ -1375,7 +1395,6 @@ atlas_QC <- function() {
       )
       SeuratSamples[[length(SeuratSamples) + 1]] <- seurat_split
       config$FILES[[length(SeuratSamples)]] <<- sample_name
-      print(paste0("config file looks like: ", config$FILES))
     } else {
       print ("not enough cells, moving onto next sample")
     }

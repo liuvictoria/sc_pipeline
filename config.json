@@ -3,7 +3,7 @@
 	"count_matrices_dir" : "sample_feature_bc_matrix",
 
 	"ObjName": "GEX",
-	"Subset": "TAtlas",
+	"Subset": "AggrTMAtlas",
 
 	"USE_ADT": false,
 	"SCT": true,
@@ -12,7 +12,7 @@
 	"RESOLUTIONS": [0.3, 0.5, 0.7, 0.8, 0.9, 1, 1.2, 1.4],
 	"RESOLUTION": "All",
 
-	"aggr_cells": false,
+	"aggr_cells": true,
 	"aggr_FILES": ["PatientPBMC", "PatientTumor"],
 	"aggr_resolutions": [0.5, 0.5],
 	"aggr_categories": [
@@ -22,7 +22,7 @@
 	],
 
 	"preprocess_existing_RDS": true,
-	"existing_RDS_name": "GBMAtlas/TcellClusters-7-22-21-goodwithoutcluster6 new patient names.rds",
+	"existing_RDS_name": "GBMAtlas/MyeloidClusters-8-10-21-patients renamed.rds",
 	"existing_RDS_split_by": "Sample",
 	"existing_RDS_remove_cluster": ["MDAG-01", "MDAG-03", "MDAG-09"],
 
@@ -36,5 +36,6 @@
 	"FONT_FAMILY": "ArialMT",
 
 	"Directory": "~/Documents/victoria_liu/matching_patients",
-	"NourpalDirectory": "~/Documents/victoria_liu/Nourpal"
+	"NourpalDirectory": "~/Documents/victoria_liu/Nourpal",
+	"TMBDirectory": "~/Documents/victoria_liu/matching_patients/DrGeorge_outputs/Tumor mutation burden/"
 }
