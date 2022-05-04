@@ -248,7 +248,7 @@ dev.off()
 DefaultAssay(SeuratObj) <- analyses$projecTILs_assay
 manual_colors <- get_colors(ref_projectils, color_by = "functional.cluster")
 projectils_metadata <- data.frame()
-for (sample_name in unique(SeuratObj$Sample)[-10]) {
+for (sample_name in unique(SeuratObj$Sample)) {
   print(sample_name)
   # subset based on sample and assignment
   query.data <- subset(
@@ -256,7 +256,11 @@ for (sample_name in unique(SeuratObj$Sample)[-10]) {
     )
 
   # proJECT
-  query.projected <- make.projection(query.data, ref = ref_projectils)
+  query.projected <- make.projection(
+    query.data, 
+    ref = ref_projectils,
+    filter.cells = analyses$gate_projecTILs
+    )
   query.projected <- cellstate.predict(
     ref <- ref_projectils, query = query.projected
   )

@@ -94,11 +94,16 @@ if (config$aggr_cells) {
     )
   
 } else {
-  # merge samples into one object
-  SeuratObj <- merge(
-    x = SeuratSamples[[1]], y = SeuratSamples[-1], 
-    add.cell.ids = config$FILES
-  )
+  stopifnot(length(SeuratSamples) > 0)
+  if (length(SeuratSamples) == 1) {
+    SeuratObj <- SeuratSamples[[1]]
+  } else {
+    # merge samples into one object
+    SeuratObj <- merge(
+      x = SeuratSamples[[1]], y = SeuratSamples[-1], 
+      add.cell.ids = config$FILES
+    )
+  }
 }
 
 
@@ -290,52 +295,7 @@ dev.off()
 # when denovo clustering
 SeuratObj <- GEX_normalization(SeuratObj)
 ########### CELL CYCLE REGRESSION (GEX) #############
-DefaultAssay(SeuratObj) <- "RNA"
-# more general set of CC genes
-s.genes <- cc.genes$s.genes
-g2m.genes <- cc.genes$g2m.genes
-
-# score cells based on what part of cell cycle they are in
-SeuratObj <- CellCycleScoring(
-  SeuratObj, 
-  s.features = s.genes, 
-  g2m.features = g2m.genes, 
-  set.ident = TRUE
-)
-
-# regress out cell cycle
-# there is also an option to score out G2 vs S, while keeping
-# the dichotomy of dividing vs not dividing
-# Reference: https://satijalab.org/seurat/articles/cell_cycle_vignette.html
-
-# GEX
-if (SCT) {
-  # sct / cellcyclescoring discussion:
-  # https://github.com/satijalab/seurat/issues/1679
-  # use pre-SCT RNA when normalizing; don't want to normalize twice
-  # RNA assay already exists, but we are overwriting it w scaled CC
-  SeuratObj <- SCTransform(
-    SeuratObj, method = "glmGamPoi", 
-    assay = "RNApreSCT", new.assay.name = "RNA",
-    vars.to.regress = c("S.Score", "G2M.Score"), verbose = FALSE,
-    return.only.var.genes = FALSE
-  )
-} else {
-  SeuratObj <- ScaleData(
-    SeuratObj,
-    vars.to.regress = c("S.Score", "G2M.Score"), 
-    features = rownames(SeuratObj)
-  )
-}
-
-# regressing is a really long process, so save for future
-saveRDS(
-  SeuratObj, 
-  file = paste0(    
-    RobjDirectory, ObjName, Subset, 
-    "_res", config$RESOLUTION, ".rds"
-    )
-)
+SeuratObj <- GEX_cc_regression(SeuratObj)
  
 ########### PCA & HARMONY BATCH CORRECTION (GEX) ##########
 DefaultAssay(SeuratObj) <- "RNA"

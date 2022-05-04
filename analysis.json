@@ -9,17 +9,19 @@
 	"which_assignment": "projecTILs",
 
 	"SingleR_assay": "RNApreSCT",
+
 	"projecTILs_assay": "RNApreSCT",
 	"projecTILs_ref": "TIL",
+	"gate_projecTILs": true,
 
-	"cluster_prefix": "MC",
+	"cluster_prefix": "TC",
 	"cluster_to_assignment": {
 	},
 
 	"use_chromatose": false,
 
 	"denovo": false,
-	"denovo_lineage": "M",
+	"denovo_lineage": "T",
 	"denovo_clusters_remove":[],
 	"denovo_superset": "AggrImmune",
 	"denovo_superset_resolution": 0.5,

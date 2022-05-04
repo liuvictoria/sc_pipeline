@@ -42,8 +42,12 @@
 	},
 
 	"T_lineage_markers": {
+		"Yun markers": [
+			"IFNG", "TOX", "TOX2", "CD69", "ENTPD1", "ITGAE", "TGFB1", "IL4",
+			"TNF", "IL13", "IL17A", "IL22", "IL21", "CCR7", "CD28", "B3GAT1"
+		],
 		"All lineages": ["Ifng", "CD247", "NCAM1", "Ptprc", "Cd3e", "Cd3g"],
-		"Exhaustion": ["LAG3", "PDCD1", "TIGIT", "Ctla4",  "CD44", "TNFRSF4", "TNFRSF8"],
+		"Exhaustion": ["LAG3", "PDCD1", "TIGIT", "Ctla4",  "CD44", "TNFRSF4", "TNFRSF8", "ENTPD1"],
 		"NK": ["Nkg7", "Klrd1", "CST7", "Gzma", "Gzmb", "Itgam", "GNLY"],
 		"CD8+": ["Cd8a", "Cd8B", "Gzma", "Gzmb", "GZMH", "S100B"],
 		"CD4+": ["Cd4", "IL7R", "ITM2A", "TXNIP"],

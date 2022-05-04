@@ -24,6 +24,7 @@ library(easypackages)
 # BiocManager::install("biomaRt")
 # BiocManager::install("scDblFinder")
 # BiocManager::install("miQC")
+# BiocManager::install("GEOquery")
 
 # install.packages("tidyverse")
 # install.packages('clustree') 
@@ -45,7 +46,7 @@ library(easypackages)
 
 MyPackages <- c(
   "dplyr", "ggplot2", "ggpubr", "gridExtra", "viridis", "egg",
-  "grid", "lattice", "gtools", "Biobase", "RColorBrewer",
+  "grid", "lattice", "gtools", "Biobase", "RColorBrewer", "tibble",
   "Seurat", "cowplot", "patchwork", "stringr", "ComplexHeatmap", 
   "SingleCellExperiment", "ggmin", "Nourpal", "Cairo",
   "DoubletFinder", "harmony", "magick", "viridis", "limma", 
@@ -53,8 +54,9 @@ MyPackages <- c(
   "gplots", "clustifyr", "fgsea", "purrr", "clustree",
   "SingleR", "celldex", "ProjecTILs", "biomaRt", "data.table",
   "umap", "pheatmap", "scDblFinder", "miQC", "SeuratWrappers",
-  "PerformanceAnalytics", "corrplot"
+  "PerformanceAnalytics", "corrplot", "GEOquery"
 )
+
 
 # similar to libaries, but will install package as well
 packages(MyPackages)
@@ -62,6 +64,7 @@ packages(MyPackages)
 # get experiment parameters
 config <- fromJSON(file = here("config.json"))
 master <- fromJSON(file = here("master.json"))
+analyses <- fromJSON(file = here("analysis.json"))
 
 # Nour's palette. Install and load
 NourpalDirectory <- config$NourpalDirectory
@@ -104,8 +107,9 @@ Directory <- config$Directory
 if (! dir.exists(Directory)) dir.create(Directory)
 setwd(Directory)
 
-# DO NOT CHANGE RobjDir (needed for reading in .rds)
-# kind of like extra level of specification
+GEOdir <- paste0(Directory, "/", analyses$GEO, "/")
+if (! dir.exists(GEOdir)) dir.create(GEOdir)
+
 RobjDir <- paste0(Directory, "/R_Objects/")
 if (! dir.exists(RobjDir)) dir.create(RobjDir)
 RobjDirectory <- paste0(RobjDir, Subset, "/")
@@ -1019,15 +1023,8 @@ theme_min2 <- function(base_size = 11, base_family = "") {
 ###################### GEX PREPROCESSING FUNCTIONS ###################
 # created here, so as to avoid code duplication
 {
-############ SCDBLFINDER & QC ##############
-GEX_QC <- function(SeuratObjMYSC, file) {
-  # determine doublets, need to change to sce
-  SeuratObjMYSC.sce <- as.SingleCellExperiment(SeuratObjMYSC)
-  sce <- scDblFinder(SeuratObjMYSC.sce)
-  
-  # Converting back to Seurat Obj
-  SeuratObjMYSC <- as.Seurat(sce)
-  Idents(SeuratObjMYSC) <- SeuratObjMYSC$orig.ident
+############ GEX FIRST SCT ############
+GEX_first_SCT <- function(SeuratObjMYSC) {
   DefaultAssay(SeuratObjMYSC) <- "RNA"
   
   # SCT
@@ -1037,7 +1034,7 @@ GEX_QC <- function(SeuratObjMYSC, file) {
       SCTransform(
         assay = "RNApreSCT", method = "glmGamPoi", 
         new.assay.name = "RNA",
-        vst.flavor = "v2", verbose = FALSE
+        vst.flavor = "v2", verbose = TRUE
       )
   } else {
     SeuratObjMYSC <- SeuratObjMYSC %>% 
@@ -1045,6 +1042,20 @@ GEX_QC <- function(SeuratObjMYSC, file) {
       FindVariableFeatures(assay = "RNA") %>%
       ScaleData(assay = "RNA")
   }
+  return (SeuratObjMYSC)
+}  
+############ SCDBLFINDER & QC ##############
+GEX_QC <- function(SeuratObjMYSC, file) {
+  # determine doublets, need to change to sce
+  SeuratObjMYSC.sce <- as.SingleCellExperiment(SeuratObjMYSC)
+  sce <- scDblFinder(SeuratObjMYSC.sce)
+  
+  # Converting back to Seurat Obj
+  SeuratObjMYSC <- as.Seurat(sce)
+  Idents(SeuratObjMYSC) <- SeuratObjMYSC$orig.ident
+  
+  SeuratObjMYSC <- GEX_first_SCT(SeuratObjMYSC)
+
   
   #Run PCA (code in utils)
   SeuratObjMYSC <- GEX_pca(SeuratObjMYSC, file)
@@ -1123,6 +1134,7 @@ GEX_QC <- function(SeuratObjMYSC, file) {
   return (SeuratObjMYSC)
 }
   
+
 ############ NORMALIZATION ##############
 GEX_normalization <- function(SeuratObj){
   
@@ -1134,7 +1146,7 @@ GEX_normalization <- function(SeuratObj){
       SeuratObj,
       assay = "RNApreSCT",
       new.assay.name = "RNA",
-      method = "glmGamPoi", verbose = FALSE,
+      method = "glmGamPoi", verbose = TRUE,
       return.only.var.genes = FALSE
     )
     
@@ -1188,6 +1200,56 @@ GEX_pca <- function(SeuratObjMYSC, file) {
   return (SeuratObjMYSC)
 }
 
+############ CELL CYCLE REGRESSION #########
+GEX_cc_regression <- function(SeuratObj) {
+  DefaultAssay(SeuratObj) <- "RNA"
+  # more general set of CC genes
+  s.genes <- cc.genes$s.genes
+  g2m.genes <- cc.genes$g2m.genes
+  
+  # score cells based on what part of cell cycle they are in
+  SeuratObj <- CellCycleScoring(
+    SeuratObj, 
+    s.features = s.genes, 
+    g2m.features = g2m.genes, 
+    set.ident = TRUE
+  )
+  
+  # regress out cell cycle
+  # there is also an option to score out G2 vs S, while keeping
+  # the dichotomy of dividing vs not dividing
+  # Reference: https://satijalab.org/seurat/articles/cell_cycle_vignette.html
+  
+  # GEX
+  if (SCT) {
+    # sct / cellcyclescoring discussion:
+    # https://github.com/satijalab/seurat/issues/1679
+    # use pre-SCT RNA when normalizing; don't want to normalize twice
+    # RNA assay already exists, but we are overwriting it w scaled CC
+    SeuratObj <- SCTransform(
+      SeuratObj, method = "glmGamPoi", 
+      assay = "RNApreSCT", new.assay.name = "RNA",
+      vars.to.regress = c("S.Score", "G2M.Score"), verbose = FALSE,
+      return.only.var.genes = FALSE
+    )
+  } else {
+    SeuratObj <- ScaleData(
+      SeuratObj,
+      vars.to.regress = c("S.Score", "G2M.Score"), 
+      features = rownames(SeuratObj)
+    )
+  }
+  
+  # regressing is a really long process, so save for future
+  saveRDS(
+    SeuratObj, 
+    file = paste0(    
+      RobjDirectory, ObjName, Subset, 
+      "_res", config$RESOLUTION, ".rds"
+    )
+  )
+  return (SeuratObj)
+}
 ######## LOUVAIN CLUSTERING (GEX) ########
 GEX_louvain <- function(
   SeuratObj, resolution,
@@ -1343,6 +1405,7 @@ cluster_markers <- function(
 }
 
 ####################### ATLAS FUNCTIONS ######################
+{
 add_atlas_TMB <- function(SeuratObj) {
   CellInfo <- SeuratObj@meta.data
   for (sample in unique(SeuratObj$Sample)) {
@@ -1383,7 +1446,7 @@ atlas_QC <- function() {
     # make sure there are enough cells and it's not a sample to be removed
     if (
       ncol(seurat_split) > 55 & 
-      ! sample_name %in% config$existing_RDS_remove_cluster
+      sample_name %in% config$existing_RDS_use_cluster
     ) {
       # QC
       seurat_split <- GEX_QC(seurat_split, sample_name)
@@ -1396,9 +1459,20 @@ atlas_QC <- function() {
       SeuratSamples[[length(SeuratSamples) + 1]] <- seurat_split
       config$FILES[[length(SeuratSamples)]] <<- sample_name
     } else {
-      print ("not enough cells, moving onto next sample")
+      print ("not enough cells or bad sample, moving onto next sample")
     }
   }
   
   return (SeuratSamples)
+}
+
+get_GEO_unzip <- function() {
+  # get GEO files
+  getGEOSuppFiles(analyses$GEO)
+  files_to_untar <- list.files(GEOdir, pattern = ".gz")
+  for (file in files_to_untar) {
+    gunzip(paste0(GEOdir, file))
+  }
+}
+
 }

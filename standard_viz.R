@@ -728,7 +728,14 @@ for (cluster_name in names(Clusterspecificgenes)) {
   cluster_genes <- Clusterspecificgenes[[cluster_name]]
   # loop each marker gene in assignment
   for (gene in cluster_genes){
-    if (gene %in% rownames(SeuratObj[["RNA"]])) {
+    gene <- case_sensitive_features(
+      SeuratObj,
+      c(gene),
+      assay = "RNA"
+    )
+    
+    if (length(gene) == 1) {
+      gene <- gene[[1]]
       F1 <- plot_featureplot (
         seurat_object = SeuratObj,
         feature_gene = gene,
@@ -890,44 +897,6 @@ for (cluster_name in names(Clusterspecificgenes)) {
 }
 
 }
-
-#################### CORRELATION BETWEEN CELL TYPES ###################
-if (config$aggr_cells & config$preprocess_existing_RDS) {
-  my_data <- table(SeuratObj$Sample, SeuratObj$Assignment)
-  # take away samples without T cells
-  my_data <- my_data[c(-5, -10, -11, -14, -15, -17),]
-  
-  # create custom column order
-  col_order <- c(
-    unique(seurat_object$Assignment), unique(seurat_object2$Assignment)
-  )
-  # CD4 naive cells have too few counts
-  col_order <- col_order[!is.na(col_order) & col_order != "CD4_NaiveLike"]
-  my_data <- my_data[, col_order]
-  pdf(paste0(
-    SubtypeCorrDirectory, ObjName, Subset, 
-    "Subtype Correlation plot.pdf"
-  ), width = 40, height = 40, family = FONT_FAMILY
-  )
-  chart.Correlation(my_data, histogram = TRUE, method = "pearson")
-  dev.off()
-  
-  
-  pdf(paste0(
-    SubtypeCorrDirectory, ObjName, Subset, 
-    "Subtype Correlation heatmap.pdf"
-  ), width = 15, height = 15, family = FONT_FAMILY
-  )
-  res <- cor(my_data)
-  corrplot(
-    res, type = "upper", order = "original", 
-    tl.col = "black", tl.srt = 45
-    )
-  dev.off()
-  
-
-}
-
 
 
 ######### RIBO RATIO QC ##########
