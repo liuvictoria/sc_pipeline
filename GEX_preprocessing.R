@@ -1,6 +1,5 @@
 ################# LOAD UTILS  ##############
 source("~/Documents/victoria_liu/matching_patients/R_Code/utils.R")
-analyses <- fromJSON(file = here("analysis.json"))
 SeuratSamples <- list()
 
 ######### QC + Doublet removal ########
@@ -363,3 +362,5 @@ file.copy(
   from = here("analysis.json"), 
   to = paste0(ConfigDirectory, ObjName, "_", Subset, "_analysis_params_RNA.json")
 )
+
+

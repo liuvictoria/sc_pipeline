@@ -4,156 +4,180 @@
 ################# LOAD UTILS ##############
 source("~/Documents/victoria_liu/matching_patients/R_Code/utils.R")
 
+
 #
-#################### SUBSET T CELLS ONLY #################
-subset_Tcells <- function(seurat_object) {
-  seurat_object <- subset(
-    x = seurat_object,
-    subset = 
-      SingleR == "CD8+ T-cells" |
-      SingleR == "CD4+ T-cells" |
-      projecTILs == "CD8_EffectorMemory" |
-      projecTILs == "Th1" |
-      projecTILs == "CD8_Tex" |
-      projecTILs == "Treg" |
-      projecTILs == "CD8_Tpex" |
-      projecTILs == "Tfh" |
-      projecTILs == "CD8_EarlyActiv" | 
-      projecTILs == "CD8_NaiveLike" | 
-      projecTILs == "CD4_NaiveLike"
-  )
-  
-  write.csv(
-    table(seurat_object$SingleR, seurat_object$projecTILs),
-    paste0(
-      OutputDirectory, ObjName, Subset,
-      " SingleR vs projecTILs cell type table.csv"
-      )
-    )
-  return (seurat_object)
-}
-
 #################### CORRELATION BETWEEN CELL TYPES ###################
-# load M Seurat objects
-RDS_myeloid_filename <- paste0(
-  RobjDir, "GBMAtlas/", "MyeloidClusters-8-10-21-patients renamed.rds"
+
+# some variables
+population <- substr(Subset, 2, str_length(Subset))
+assignment_type <- "Cluster"
+T_correlation_with <- c("myeloid", "glioma")
+normalizations <- c("fragment_all", "fragment_subtype", "none")
+
+
+seurat_atlas_all <- preprocess_atlas_objects_corr(
+  paste0(RobjDir, "GBMAtlas/", "Allhuman-11-3-21.rds"),
+  "fragment"
 )
-seurat_myeloid_all <- readRDS(
-  file = RDS_myeloid_filename
-)
-seurat_myeloid_all$Facility <- ifelse(
-  grepl("MDAG", seurat_myeloid_all$Sample, fixed = TRUE),
-  "MDAG", "CNSTM"
+normalization_counts_fragment <- read_normalization_counts(
+  "fragment_normalization_counts.csv"
 )
 
-# load G Seurat objects (glioma)
-RDS_glioma_filename <- paste0(
-  RobjDir, "GBMAtlas/", "GliomaClusters-11-3-21 patients renamed.rds" 
+seurat_glioma_all <- preprocess_atlas_objects_corr(
+  paste0(RobjDir, "GBMAtlas/", "GliomaClusters-11-3-21 patients renamed.rds"),
+  "fragment_glioma"
 )
-seurat_glioma_all <- readRDS(
-  file = RDS_myeloid_filename
-)
-seurat_glioma_all$Facility <- ifelse(
-  grepl("MDAG", seurat_myeloid_all$Sample, fixed = TRUE),
-  "MDAG", "CNSTM"
+normalization_counts_glioma <- read_normalization_counts(
+  "fragment_glioma_normalization_counts.csv"
 )
 
-# sample type: Seurat objects are created separately, so load separately
-populations <- c(
-  "CNSTM-068", "CNSTM-070", "CNSTM-081", "CNSTM-096",
-  "CNSTM-379", "CNSTM-390", "CNSTM-394", "CNSTM-397",
-  "MDAG-01", "MDAG-03", "MDAG-04", "MDAG-06", "MDAG-07",
-  "MDAG-09", "MDAG-10", "MDAG-11", "MDAG-12", "CNSTM-375"
+seurat_myeloid_all <- preprocess_atlas_objects_corr(
+  paste0(RobjDir, "GBMAtlas/", "MyeloidClusters-11-4-21-patients renamed.rds"),
+  "fragment_myeloid"
+)
+normalization_counts_myeloid <- read_normalization_counts(
+  "fragment_myeloid_normalization_counts.csv"
+)
+
+# T cell subset
+RDS_T_filename <- paste0(
+  RobjDir, "T", population, "/", 
+  "GEXT", population, "_resAll.rds"
+)
+
+seurat_T <- preprocess_atlas_objects_corr(
+  RDS_T_filename,
+  "fragment_T"
   )
-assignment_types <- c("Assignment", "Assignment2", "Cluster")
-for (sample_type in sample_types) {
-  # figure out myeloid subset
-  seurat_myeloid <- subset(
-    seurat_myeloid_all,
-    subset = Facility == sample_type
-  )
+seurat_T$Cluster <- seurat_T$Assignment
+normalization_counts_T <- read_normalization_counts(
+  "fragment_T_normalization_counts.csv"
+)
+
+# do myeloid or glioma, one at a time
+for (correlation_with in T_correlation_with) {
   
-  # T cell subset
-  RDS_T_filename <- paste0(
-    RobjDir, "T", sample_type, "/", 
-    "GEXT", sample_type, "_resAll.rds"
-  )
-  seurat_T <- readRDS(
-    file = RDS_T_filename
-  )
+  # create directories for outputs
+  SubtypeDirectory <- paste0(SubtypeCorrDirectory, correlation_with, "/")
+  if (! dir.exists(SubtypeDirectory)) {dir.create(SubtypeDirectory)}
   
-  # we want to analyze myeloid according to cluster assignments + more
-  # generic assignments
-  seurat_T$Assignment2 <- seurat_T$Assignment
-  seurat_T$Cluster <- seurat_T$Assignment
+  
+  # hard code which correlation type it is (I mean, there's only two, sooo)
+  if (correlation_with == "myeloid") {
+    seurat_correlation_with <- seurat_myeloid_all
+  } else if (correlation_with == "glioma") {
+    seurat_correlation_with <- seurat_glioma_all
+  } else {
+    stop("invalid correlation Seurat object")
+  }
+   
+  # figure out patient subset
+  seurat_correlation_with_subset <- subset(
+    seurat_correlation_with,
+    subset = ID == population |
+      Facility == population
+  )
   
   # merge objects
   seurat_sample <- merge(
-    x = seurat_myeloid, y = seurat_T, 
-    add.cell.ids = c("myeloid", "T")
+    x = seurat_correlation_with_subset, y = seurat_T, 
+    add.cell.ids = c(correlation_with, "T")
   )
-
-  for (assignment_type in assignment_types) {
-    my_data <- table(
-      seurat_sample$Fragment,
-      seurat_sample@meta.data[[assignment_type]]
-      )
+  my_data <- table(
+    seurat_sample$Fragment,
+    seurat_sample$Cluster
+  )
+  
+  # take away fragments that don't contain both T and myeloid cells
+  rows <- intersect(
+    unique(seurat_T$Fragment), unique(seurat_correlation_with_subset$Fragment)
+  )
+  my_data <- my_data[rownames(my_data) %in% rows, ]
+  
+  # create custom column order
+  col_order <- c(
+    sort(unique(seurat_correlation_with_subset@meta.data[[assignment_type]])), 
+    sort(unique(seurat_T@meta.data[[assignment_type]]))
+  )
+  # CD4 naive cells have too few counts
+  col_order <- col_order[!is.na(col_order) & col_order != "CD4_NaiveLike"]
+  my_data <- my_data[, col_order]
+  
+  for (normalization in normalizations) {
+    # normalize
+    my_data_normalized <- my_data
+    for (subtype in colnames(my_data_normalized)) {
+      for (fragment in rownames(my_data_normalized)) {
+        if (normalization == "none") {
+          normalize_denominator <- 1
+        } else if (normalization == "fragment_all") {
+          normalize_denominator <- normalization_counts_fragment[[
+            fragment
+          ]]
+        } else if (normalization == "fragment_subtype") {
+          if (grepl("MC", subtype, fixed = TRUE)) {
+            normalize_denominator <- normalization_counts_myeloid[[
+              fragment
+            ]]
+          } else if (grepl("GC", subtype, fixed = TRUE)) {
+            normalize_denominator <- normalization_counts_glioma[[
+              fragment
+            ]]
+          } else if (subtype %in% unique(seurat_T$Assignment)) {
+            normalize_denominator <- normalization_counts_T[[
+              fragment
+            ]]
+          } else {
+            print(subtype)
+            print(fragment)
+            stop("normalization denominator could not be found")
+          }
+        }
+        stopifnot(! is.null(normalize_denominator))
+          
+        my_data_normalized[fragment, subtype] <- 
+          my_data_normalized[fragment, subtype] / normalize_denominator
+      }
+    }
     
-    # take away fragments that don't contain both T and myeloid cells
-    rows <- intersect(
-      unique(seurat_T$Fragment), unique(seurat_myeloid$Fragment)
-    )
-    my_data <- my_data[rownames(my_data) %in% rows, ]
-    
-    # create custom column order
-    col_order <- c(
-      sort(unique(seurat_myeloid@meta.data[[assignment_type]])), 
-      sort(unique(seurat_T@meta.data[[assignment_type]]))
-    )
-    # CD4 naive cells have too few counts
-    col_order <- col_order[!is.na(col_order) & col_order != "CD4_NaiveLike"]
-    my_data <- my_data[, col_order]
     pdf(paste0(
-      SubtypeCorrDirectory, ObjName, Subset, 
-      "_Sample-", sample_type,
-      "_Assignment-", assignment_type,
-      "_Subtype Correlation plot.pdf"
+      SubtypeDirectory, ObjName, Subset,
+      "__Sample ", population,
+      "__Normalization ", normalization,
+      "__Subtype Correlation plot.pdf"
     ), width = 40, height = 40, family = FONT_FAMILY
     )
-    chart.Correlation(my_data, histogram = TRUE, method = "pearson")
+    chart.Correlation(my_data_normalized, histogram = TRUE, method = "pearson")
     mtext(paste0(
-      "Sample: ", sample_type,
-      " __ Assignment: ", assignment_type,
+      "Sample: ", population,
+      " __ Normalization: ", normalization,
       " __ Subtype Correlation plot"
-      ), side = 3, line = 3, cex = 2)
+    ), side = 3, line = 3, cex = 2)
     dev.off()
     
     
     pdf(paste0(
-      SubtypeCorrDirectory, ObjName, Subset, 
-      "_Sample-", sample_type,
-      "_Assignment-", assignment_type,
-      "_Subtype Correlation heatmap.pdf"
+      SubtypeDirectory, ObjName, Subset, 
+      "__Sample ", population,
+      "__Normalization ", normalization,
+      "__Subtype Correlation heatmap.pdf"
     ), width = 15, height = 15, family = FONT_FAMILY
     )
-    res <- cor(my_data)
+    res <- cor(my_data_normalized)
     corrplot(
       res, type = "upper", order = "original", 
       tl.col = "black", tl.srt = 45,
-      mar=c(0, 0, 10, 0),
+      number.font = 1,
+      mar = c(0, 0, 10, 0),
       title = paste0(
-        "Sample: ", sample_type,
-        " __ Assignment: ", assignment_type,
+        "Sample: ", population,
+        " __ Normalization: ", normalization,
         " __ Subtype Correlation heatmap"
-        )
+      )
     )
     dev.off()
   }
 }
-
-
-
-
 
 
 #################### PAN CANCER T CELLS #####################
@@ -534,6 +558,9 @@ DotPlot(merged_seurat2,group.by = "Cluster" ,features = c('KIT','TPSAB1','CPA3',
                                                           ,'PLTP','SEPP1','C1QC','C1QA','APOE',"CD14","CD16","TREM2"),
         scale = T)+RotatedAxis()+RotatedAxis()+scale_colour_viridis_c(option = "plasma")
 FeaturePlot(merged_seurat2,features = "CLEC9A",reduction = "umap")
+
+
+
 
 
 

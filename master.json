@@ -42,6 +42,9 @@
 	},
 
 	"T_lineage_markers": {
+		"Huntoon markers": [
+			"ENPP1"
+		],
 		"Yun markers": [
 			"IFNG", "TOX", "TOX2", "CD69", "ENTPD1", "ITGAE", "TGFB1", "IL4",
 			"TNF", "IL13", "IL17A", "IL22", "IL21", "CCR7", "CD28", "B3GAT1"
@@ -60,6 +63,9 @@
 	},
 
 	"M_lineage_markers": {
+		"Huntoon markers": [
+			"ENPP1"
+		],
 		"BMDM": ["Ptprc", "Itgam", "Itgax", "Cd74", "Cd68", "S100a8", "S100a9"],
 
 		"Macrophage": ["Itgam", "Lyz", "cd68", "CD163", "MSR1", "MRC1", "ITGA4"],

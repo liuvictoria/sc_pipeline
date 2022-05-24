@@ -13,10 +13,13 @@ library(easypackages)
 # only need to install once
 # devtools::install_github("satijalab/sctransform", ref = "develop")
 # devtools::install_github("jokergoo/ComplexHeatmap")
+# devtools::install_github('cole-trapnell-lab/leidenbase')
+# devtools::install_github('cole-trapnell-lab/monocle3')
 # BiocManager::install("ComplexHeatmap")
 # BiocManager::install("SingleCellExperiment")
 # BiocManager::install('limma')
 # BiocManager::install("clustifyr")
+# BiocManager::install("slingshot")
 # # gamma poisson generalized linear model
 # BiocManager::install("glmGamPoi")
 # BiocManager::install("celldex")
@@ -25,6 +28,13 @@ library(easypackages)
 # BiocManager::install("scDblFinder")
 # BiocManager::install("miQC")
 # BiocManager::install("GEOquery")
+# BiocManager::install(c(
+#   'BiocGenerics', 'DelayedArray', 'DelayedMatrixStats',
+#   'limma', 'S4Vectors', 'SingleCellExperiment',
+#   'SummarizedExperiment', 'batchelor', 'Matrix.utils'
+#   ))
+
+
 
 # install.packages("tidyverse")
 # install.packages('clustree') 
@@ -54,7 +64,8 @@ MyPackages <- c(
   "gplots", "clustifyr", "fgsea", "purrr", "clustree",
   "SingleR", "celldex", "ProjecTILs", "biomaRt", "data.table",
   "umap", "pheatmap", "scDblFinder", "miQC", "SeuratWrappers",
-  "PerformanceAnalytics", "corrplot", "GEOquery"
+  "PerformanceAnalytics", "corrplot", "GEOquery",
+  "slingshot", "ggbeeswarm", "monocle3"
 )
 
 
@@ -127,7 +138,10 @@ if (! dir.exists(OutDirectory)) dir.create(OutDirectory)
 OutputDirectory <- paste0(
   OutDirectory, "/", ObjName, "Res", config$RESOLUTION, "/"
   )
-utils::browseURL(OutputDirectory)
+# open folder to ensure it's correct
+utils::browseURL(
+  paste0("Output/", Subset, "/", ObjName, "Res", config$RESOLUTION, "/")
+  )
 if (! dir.exists(OutputDirectory)) dir.create(OutputDirectory)
 ConfigDirectory <- paste0(OutputDirectory, "/Configs/")
 if (! dir.exists(ConfigDirectory)) dir.create(ConfigDirectory)
@@ -173,8 +187,13 @@ if (! dir.exists(ADTDirectory) & config$USE_ADT == TRUE) {
 }
 
 SubtypeCorrDirectory <- paste0(OutputDirectory, "/SubtypeCorrelations/")
-if (config$aggr_cells & config$preprocess_existing_RDS) {
+if (! dir.exists(SubtypeCorrDirectory) & config$preprocess_existing_RDS) {
   dir.create(SubtypeCorrDirectory)
+}
+
+PseudoDirectory <- paste0(OutputDirectory, "/Pseudotime/")
+if (! dir.exists(PseudoDirectory)) {
+  dir.create(PseudoDirectory)
 }
 
 ##################### GENERIC HELPER FUNCTIONS ######################
@@ -1476,3 +1495,146 @@ get_GEO_unzip <- function() {
 }
 
 }
+
+
+#################### DOWNSTREAM  #################
+{
+#################### SUBSET T CELLS ONLY #################
+subset_Tcells <- function(seurat_object) {
+  seurat_object <- subset(
+    x = seurat_object,
+    subset = 
+      SingleR == "CD8+ T-cells" |
+      SingleR == "CD4+ T-cells" |
+      projecTILs == "CD8_EffectorMemory" |
+      projecTILs == "Th1" |
+      projecTILs == "CD8_Tex" |
+      projecTILs == "Treg" |
+      projecTILs == "CD8_Tpex" |
+      projecTILs == "Tfh" |
+      projecTILs == "CD8_EarlyActiv" | 
+      projecTILs == "CD8_NaiveLike" | 
+      projecTILs == "CD4_NaiveLike"
+  )
+  
+  write.csv(
+    table(seurat_object$SingleR, seurat_object$projecTILs),
+    paste0(
+      OutputDirectory, ObjName, Subset,
+      " SingleR vs projecTILs cell type table.csv"
+    )
+  )
+  return (seurat_object)
+}
+#################### WRITE ATLAS NORMALIZATION COUNTS ##################
+preprocess_atlas_objects_corr <- function(RDS_filename, population) {
+  seurat_all <- readRDS(file = RDS_filename)
+  seurat_all$Facility <- ifelse(
+    grepl("MDAG", seurat_all$Sample, fixed = TRUE),
+    "MDAG", "CNSTM"
+  )
+  write.table(
+    table(seurat_all$Fragment),
+    paste0(
+      dataDirectory, "GBMAtlas/", 
+      population, "_normalization_counts.csv"
+    ),
+    col.names = c("Fragment", "Freq"),
+    sep = ",",
+    row.names = F
+  )
+  return (seurat_all)
+}
+################## READ ATLAS NORMALIZATION COUNTS #####################
+read_normalization_counts <- function(csv_name) {
+  counts <- read.csv(
+    paste0(dataDirectory, "GBMAtlas/", csv_name)
+  )
+  normalization_counts <- list()
+  for (idx in 1:length(counts[[1]])) {
+    normalization_counts[[counts$Fragment[idx]]] <- counts$Freq[idx]
+  }
+  return (normalization_counts)
+}
+
+#################### SUBTYPE COUNTS PER FRAGMENT ######################
+write_subtype_counts_per_fragment <- function (
+    seurat_object, fragment_col, subtype_col, 
+    patient_population, cell_population
+) {
+  write.table(
+    table(
+      seurat_object@meta.data[[fragment_col]], 
+      seurat_object@meta.data[[subtype_col]]
+    ),
+    paste0(
+      dataDirectory, "GBMAtlas/", 
+      patient_population, "_", cell_population, "_", 
+      fragment_col, "_", subtype_col, "_populations.csv"
+    ),
+    sep = ",",
+    row.names = T,
+    col.names = NA
+  )
+}
+
+#################### SLINGSHOT COLOR COLUMN #######################
+# modify SeuratObj for color scheme
+private_category_to_int <- function(category, translation) {
+  return (translation[[category]])
+}
+meta_category_to_int <- function(SeuratObj, column, translation_column) {
+  translation <- list()
+  for (idx_category in 1:length(unique(SeuratObj@meta.data[[column]]))) {
+    category <- sort(unique(SeuratObj@meta.data[[column]]))[idx_category]
+    translation[[category]] <- idx_category
+  }
+  SeuratObj <- AddMetaData(
+    object = SeuratObj, 
+    metadata = map_int(
+      SeuratObj@meta.data[[column]], private_category_to_int, translation
+      ),
+    col.name = translation_column
+  )
+  
+  return (SeuratObj)
+}
+
+#################### SLINGSHOT PLOT UMAP #######################
+plot_slingshot_umap <- function (SeuratObj.sce, Colors, ColNo, title) {
+  plot (
+    reducedDims(SeuratObj.sce)$UMAPRNA, 
+    col = Colors[SeuratObj@meta.data[[ColNo]]], 
+    pch = 16, asp = 1, cex = 0.5, main = title
+  )
+  lines(SlingshotDataSet(SeuratObj.sce), lwd = 2, col = "black")
+}
+
+#################### SLINGSHOT PLOT PSEUDOTIME #######################
+plot_slingshot_pseudotime <- function (
+    SeuratObj,
+    pseudotime_version,
+    cluster_by,
+    color_scheme,
+    x_lab = "Slingshot pseudotime",
+    y_lab = "Subtype"
+) {
+  G1 <- ggplot(
+    as.data.frame(SeuratObj@meta.data), 
+    aes_string(
+      x = SeuratObj@meta.data[[pseudotime_version]], 
+      y = cluster_by, 
+      colour = cluster_by
+    )
+  ) + 
+    ggbeeswarm::geom_quasirandom(groupOnX = FALSE) +
+    theme_classic() +  
+    xlab(x_lab) + 
+    ylab(y_lab) + 
+    ggmin::theme_min() + 
+    scale_color_manual(values = color_scheme)
+  return (G1)
+}
+
+}
+

@@ -1,42 +1,58 @@
 {
-	"FILES": [],
-	"count_matrices_dir" : "sample_feature_bc_matrix",
-
-	"ObjName": "GEX",
-	"Subset": "TCNSTM375",
-
-	"USE_ADT": false,
-	"SCT": true,
-	"batch_norm_by": "Sample",
-
-	"RESOLUTIONS": [0.3, 0.5, 0.7, 0.8, 0.9, 1, 1.2, 1.4],
-	"RESOLUTION": 0.3,
-
-	"aggr_cells": false,
-	"aggr_FILES": ["PatientPBMC", "PatientTumor"],
-	"aggr_resolutions": [0.5, 0.5],
-	"aggr_categories": [
-		"Myeloid", "TCells", "CD4 T", "CD8 T",
-		"CD14+ Mono", "CD16+ Mono",
-    "NK", "B", "DC", "CD34+", "pDCs"
-	],
-
-	"preprocess_existing_RDS": true,
-	"existing_RDS_name": "GBMAtlas/TcellClusters-7-22-21-goodwithoutcluster6 new patient names.rds",
-	"existing_RDS_split_by": "Sample",
-	"existing_RDS_use_cluster": [
-		"CNSTM375"
-	],
-
-
-	"nFeature_RNA": 200,
-	"ribo_ratio": 0.4,
-	"mito_ratio": 0.15,
-	"nFeature_ADT": 40,
-
-	"run_Harmony_CC_controls": false,
-	"FONT_FAMILY": "ArialMT",
-
-	"Directory": "~/Documents/victoria_liu/matching_patients",
-	"NourpalDirectory": "~/Documents/victoria_liu/Nourpal"
+    "FILES": [],
+    "count_matrices_dir": "sample_feature_bc_matrix",
+    "ObjName": "GEX",
+    "Subset": "TCNSTM",
+    "USE_ADT": false,
+    "SCT": true,
+    "batch_norm_by": "Sample",
+    "RESOLUTIONS": [
+        0.3,
+        0.5,
+        0.7,
+        0.8,
+        0.9,
+        1,
+        1.2,
+        1.4
+    ],
+    "RESOLUTION": 0.3,
+    "aggr_cells": false,
+    "aggr_FILES": [
+        "PatientPBMC",
+        "PatientTumor"
+    ],
+    "aggr_resolutions": [
+        0.5,
+        0.5
+    ],
+    "aggr_categories": [
+        "Myeloid",
+        "TCells",
+        "CD4 T",
+        "CD8 T",
+        "CD14+ Mono",
+        "CD16+ Mono",
+        "NK",
+        "B",
+        "DC",
+        "CD34+",
+        "pDCs"
+    ],
+    "preprocess_existing_RDS": false,
+    "existing_RDS_name": "GBMAtlas/TCellClusters-11-3-21 patients renamed.rds",
+    "existing_RDS_use_cluster": [
+      "MDAG-03", "MDAG-04", "MDAG-06", "MDAG-07",
+      "MDAG-09", "MDAG-10", "MDAG-11", "MDAG-12",
+      "CNSTM-068", "CNSTM-070", "CNSTM-081", "CNSTM-096", "CNSTM-375",
+      "CNSTM-379", "CNSTM-390", "CNSTM-394", "CNSTM-397"
+    ],
+    "nFeature_RNA": 200,
+    "ribo_ratio": 0.4,
+    "mito_ratio": 0.15,
+    "nFeature_ADT": 40,
+    "run_Harmony_CC_controls": false,
+    "FONT_FAMILY": "ArialMT",
+    "Directory": "~/Documents/victoria_liu/matching_patients",
+    "NourpalDirectory": "~/Documents/victoria_liu/Nourpal"
 }
