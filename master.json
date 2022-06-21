@@ -42,9 +42,6 @@
 	},
 
 	"T_lineage_markers": {
-		"Huntoon markers": [
-			"ENPP1"
-		],
 		"Yun markers": [
 			"IFNG", "TOX", "TOX2", "CD69", "ENTPD1", "ITGAE", "TGFB1", "IL4",
 			"TNF", "IL13", "IL17A", "IL22", "IL21", "CCR7", "CD28", "B3GAT1"
@@ -63,6 +60,45 @@
 	},
 
 	"M_lineage_markers": {
+		"Huntoon markers": [
+			"ENPP1"
+		],
+		"BMDM": ["Ptprc", "Itgam", "Itgax", "Cd74", "Cd68", "S100a8", "S100a9"],
+
+		"Macrophage": ["Itgam", "Lyz", "cd68", "CD163", "MSR1", "MRC1", "ITGA4"],
+		"sMac1": ["CD14", "CD163", "MSR1"],
+		"sMac2": ["CD163", "S100A4", "LYZ", "VEGFA", "TGFB1", "IL10"],
+		"PMac": ["MKI67"],
+
+		"MDSC": ["MIF"],
+		"CD14": ["CD14", "Lyz"],
+		"CD16": ["FCGR3A", "MS4A7"],
+		"DC": ["FCER1A", "CST3", "BATF3", "CD1C", "NCAM1"],
+
+		"Microglia": ["P2ry12", "Tmem119", "Cx3cr1", "P2ry13", "Fcer1g", "Ctsd"],
+		"iMic": ["CCL3", "CCL4", "CCL4L2", "CD83", "TNF", "IL1B", "NFKBIZ"],
+		"hMic": ["CST3"],
+		"APMic": ["CX3CR1", "CD86", "IFNGR1", "TGFB1", "B2M"],
+		"aMic": ["SPRY1"]
+	},
+
+	"A_lineage_markers": {
+		"Yun markers": [
+			"IFNG", "TOX", "TOX2", "CD69", "ENTPD1", "ITGAE", "TGFB1", "IL4",
+			"TNF", "IL13", "IL17A", "IL22", "IL21", "CCR7", "CD28", "B3GAT1"
+		],
+		"All lineages": ["Ifng", "CD247", "NCAM1", "Ptprc", "Cd3e", "Cd3g"],
+		"Exhaustion": ["LAG3", "PDCD1", "TIGIT", "Ctla4",  "CD44", "TNFRSF4", "TNFRSF8", "ENTPD1"],
+		"NK": ["Nkg7", "Klrd1", "CST7", "Gzma", "Gzmb", "Itgam", "GNLY"],
+		"CD8+": ["Cd8a", "Cd8B", "Gzma", "Gzmb", "GZMH", "S100B"],
+		"CD4+": ["Cd4", "IL7R", "ITM2A", "TXNIP"],
+		"Treg": ["Tigit", "Ctla4", "Foxp3", "Il2ra"],
+		"Memory": ["Il2ra", "S100a4"],
+		"Naive": ["Ccr7", "Tcf7"],
+		"Memory CD4+": ["CD4", "PTGDR2", "CD200R1"],
+		"Naive CD4+": ["CD4", "CDHR3", "DICER1-AS1", "RAD9A"],
+		"B": ["CD79A", "CD19", "CD27"],
+
 		"Huntoon markers": [
 			"ENPP1"
 		],
@@ -596,7 +632,7 @@
 	},
 
 	"chromatose_keys" : [
-		"pumpkin", "crest", "nacre", "vylette", "warble"
+		"crest", "pumpkin", "nacre", "vylette", "warble"
 	],
 
   "chromatose" : {

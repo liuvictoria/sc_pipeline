@@ -14,7 +14,9 @@ seurat_glioma_all <- preprocess_atlas_objects_corr(
   paste0(RobjDir, "GBMAtlas/", "GliomaClusters-11-3-21 patients renamed.rds"),
   "all_fragment_glioma"
 )
+
 seurat_glioma_all$Assignment <- seurat_glioma_all$Cluster
+
 normalization_counts_glioma <- read_normalization_counts(
   "all_fragment_glioma_normalization_counts.csv"
 )
@@ -27,24 +29,21 @@ normalization_counts_myeloid <- read_normalization_counts(
   "all_fragment_myeloid_normalization_counts.csv"
 )
 
-if (Subset %in% c("CNSTM", "MDAG")) {
-  facility <- Subset
-} else {
-  facility <- str_sub(strsplit(Subset, "-")[[1]][1], 2, -1)
-}
-stopifnot (facility == "CNSTM" | facility == "MDAG")
+# group = "ndGBM" OR "rGBM" or "Atlas"
+# group <- str_sub(strsplit(Subset, "-")[[1]][1], 2, -1)
+group <- "Atlas"
+stopifnot (group == "ndGBM" | group == "rGBM" | group == "Atlas")
 seurat_T_all <- preprocess_atlas_objects_corr(
   paste0(
-    RobjDir, "T", facility, "/", 
-    "GEXT", facility, "_resAll.rds"
+    RobjDir, "T", group, "/", 
+    "GEXT", group, "_resAll.rds"
     ),
-  paste0(facility, "_fragment_T")
+  paste0(group, "_fragment_T"),
+  flip_patient_sample = F
 )
 normalization_counts_T <- read_normalization_counts(
-  paste0(facility, "_fragment_T_normalization_counts.csv")
+  paste0(group, "_fragment_T_normalization_counts.csv")
 )
-
-
 
 
 ############## CORRELATION BETWEEN CELL TYPES BULK NORMALIZED ###############
@@ -57,8 +56,8 @@ normalizations <- c("fragment_all", "fragment_subtype", "none")
 # T cell subset
 seurat_T <- subset(
   seurat_T_all,
-  subset = ID == population |
-    Facility == population
+  subset = Sample == population |
+    TumorType == population
 )
 seurat_T$Cluster <- seurat_T$Assignment
 
@@ -82,8 +81,8 @@ for (correlation_with in T_correlation_with) {
   # figure out patient subset
   seurat_correlation_with_subset <- subset(
     seurat_correlation_with,
-    subset = ID == population |
-      Facility == population
+    subset = Sample == population |
+      TumorType == population
   )
   
   # merge objects
@@ -157,39 +156,31 @@ for (correlation_with in T_correlation_with) {
         }
       }
       
-      pdf(paste0(
-        SubtypeDirectory, ObjName, Subset,
-        "__Sample ", population,
-        "__Normalization ", normalization,
-        "__Subtype Correlation plot.pdf"
-      ), width = 40, height = 40, family = FONT_FAMILY
-      )
-      chart.Correlation(my_data_normalized, histogram = TRUE, method = "pearson")
-      mtext(paste0(
-        "Sample: ", population,
-        " __ Normalization: ", normalization,
-        " __ Subtype Correlation plot"
-      ), side = 3, line = 3, cex = 2)
-      dev.off()
-      
+      res <- cor(my_data_normalized)
+      res_with_conf <- cor.mtest(my_data_normalized, conf.level = 0.95)
       
       pdf(paste0(
         SubtypeDirectory, ObjName, Subset, 
         "__Sample ", population,
         "__Normalization ", normalization,
         "__Subtype Correlation heatmap.pdf"
-      ), width = 15, height = 15, family = FONT_FAMILY
+      ), width = 15, height = 15, 
+      family = FONT_FAMILY
       )
-      res <- cor(my_data_normalized)
-      res_with_conf <- cor.mtest(my_data_normalized, conf.level = 0.95)
+
       corrplot(
-        res, p.mat = res_with_conf$p, 
-        addCoef.col ='black', number.cex = 0.8,
+        res, 
+        p.mat = res_with_conf$p,
+        addCoef.col = "black",
+        number.cex = 0.8,
+        number.font = 1,
         type = "upper", order = "original",
-        insig = "blank",
-        tl.col = "black", tl.srt = 45, tl.cex = 10,
-        mar=c(0, 0, 10, 0),
-        col=rev(COL2("RdBu")),
+        insig = "pch",
+        tl.col = "black", tl.srt = 45, 
+        tl.cex = 1.5,
+        cl.cex = 1.5,
+        mar = c(0, 0, 10, 0),
+        col = rev(COL2("RdBu")),
         title = paste0(
           "Sample: ", population,
           " __ Normalization: ", normalization,
@@ -206,15 +197,15 @@ for (correlation_with in T_correlation_with) {
 # capture session info, versions, etc.
 writeLines(
   capture.output(sessionInfo()), 
-  paste0(ConfigDirectory, ObjName, "_", Subset, "_sessionInfo_RNA.txt")
+  paste0(ConfigDirectory, ObjName, "_", Subset, "_sessionInfo.txt")
 )
 file.copy(
   from = here("config.json"), 
-  to = paste0(ConfigDirectory, ObjName, "_", Subset, "_config_params_RNA.json")
+  to = paste0(ConfigDirectory, ObjName, "_", Subset, "_config_params.json")
 )
 file.copy(
   from = here("analysis.json"), 
-  to = paste0(ConfigDirectory, ObjName, "_", Subset, "_analysis_params_RNA.json")
+  to = paste0(ConfigDirectory, ObjName, "_", Subset, "_analysis_params.json")
 )
 
-quit(save = "no")
+# quit(save = "no")

@@ -4,16 +4,10 @@ source("~/Documents/victoria_liu/matching_patients/R_Code/utils.R")
 # this object is fully pre-processed for GEX
 RDS_filename <- paste0(
   RobjDirectory, ObjName, Subset, 
-  "_res", RESOLUTION, ".rds"
+  "_resAll.rds"
 )
 if (! file.exists(RDS_filename)) {
-  RDS_filename <- paste0(
-    RobjDirectory, ObjName, Subset, 
-    "_resAll.rds"
-  )
-  if (! file.exists(RDS_filename)) {
-    print ("no Seurat object to analyze")
-  }
+  print ("no Seurat object to analyze")
 }
 print(paste0("reading SeuratObj from file ", RDS_filename))
 SeuratObj <- readRDS(RDS_filename)
@@ -32,52 +26,6 @@ Clusterspecificgenes <- master[[
 ]]
 
 ############### ADD CLUSTER METADATA  #################
-
-add_cluster_metadata <- function (SeuratObj) {
-  # i.e. cluster_res_column = "RNA_snn_res.0.5"
-  if (analyses$viz_clustering == "RNA") {
-    cluster_res_column = paste0("RNA_snn_res.", RESOLUTION)
-  } else if (analyses$viz_clustering == "ADT") {
-    cluster_res_column = paste0("ADT_snn_res.", RESOLUTION)
-  } else if (analyses$viz_clustering == "WNN") {
-    cluster_res_column = paste0("wsnn_res.", RESOLUTION)
-  }
-  
-  # i.e. cluster_name = "ClusterRNA"
-  if (analyses$viz_clustering == "RNA") {
-    cluster_name = "ClusterRNA"
-  } else if (analyses$viz_clustering == "ADT") {
-    cluster_name = "ClusterADT"
-  } else if (analyses$viz_clustering == "WNN") {
-    cluster_name = "ClusterWNN"
-  } else {
-    stop("invalid cluster_name")
-  }
-  
-  CellInfo <- SeuratObj@meta.data
-  
-  # Rename Clusters; i.e. WNNC01, WNNC02
-  cluster_count <- length(levels(as.factor(
-    SeuratObj[[cluster_res_column]][, 1]
-  )))
-  
-  for(j in 1 : cluster_count){
-    if (j < 10){
-      CellInfo[[cluster_name]][
-        CellInfo[[cluster_res_column]] == j - 1
-      ] <- paste0(analyses$cluster_prefix, "0", j)
-    }
-    else {
-      CellInfo[[cluster_name]][
-        CellInfo[[cluster_res_column]] == j - 1
-      ] <- paste0(analyses$cluster_prefix, j)
-    }
-  }
-  SeuratObj@meta.data <- CellInfo
-  Idents(SeuratObj) <- CellInfo[[cluster_name]]
-  return (SeuratObj)
-}
-
 SeuratObj <- add_cluster_metadata(SeuratObj)
 
 # remove unnecessary metadata; focusing on one resolution at a time
@@ -93,6 +41,8 @@ for (metadata_col in colnames(SeuratObj@meta.data)) {
 
 
 ########## SAVE LOUPE PROJECTIONS ##########
+cluster_name <- get_cluster_name()
+
 write.csv(
   Embeddings(SeuratObj, paste0("umap", analyses$viz_clustering)), 
   paste0(
@@ -187,15 +137,15 @@ dev.off()
 
 ################# CLUSTER / SAMPLE BARPLOTS ###################
 P2 <- plot_bargraph (
-  seurat_object = SeuratObj, aesX = "Sample", 
-  fill = paste0("Cluster", analyses$viz_clustering), 
-  y_label = "Composition (Number of cells)", x_label = NULL, 
+  seurat_object = SeuratObj, aesX = "Sample",
+  fill = paste0("Cluster", analyses$viz_clustering),
+  y_label = "Composition (Number of cells)", x_label = NULL,
   y_lower_limit = 0, y_break = 1000,
   color_reverse = TRUE
 )
 
 pdf(paste0(
-  densityplotDirectory, ObjName, Subset, "res", RESOLUTION, 
+  densityplotDirectory, ObjName, Subset, "res", RESOLUTION,
   "_number of cells per sample and ", analyses$viz_clustering,
   " Cluster barplot.pdf"
 ),
@@ -207,17 +157,17 @@ dev.off()
 
 
 P3 <- plot_bargraph (
-  seurat_object = SeuratObj, 
+  seurat_object = SeuratObj,
   aesX = paste0("Cluster", analyses$viz_clustering), fill = "Sample",
-  y_label = "Composition (percentage of cells)", x_label = NULL, 
+  y_label = "Composition (percentage of cells)", x_label = NULL,
   y_lower_limit = 0, y_break = 0.2,
   position = "fill",
   plot_margin = unit(c(0.2, 0.5, 0.2, 0.5), "cm")
 )
 
 pdf(paste0(
-  densityplotDirectory, ObjName, Subset, 
-  "res", RESOLUTION, 
+  densityplotDirectory, ObjName, Subset,
+  "res", RESOLUTION,
   "_percent of cells per sample and ", analyses$viz_clustering,
   " Cluster barplot.pdf"
 ), width = 8, height = 5.5, family = FONT_FAMILY
@@ -228,14 +178,14 @@ dev.off()
 
 
 P4 <- plot_bargraph (
-  seurat_object = SeuratObj, 
-  aesX = paste0("Cluster", analyses$viz_clustering), fill = "Sample", 
-  y_label = "Composition (Number of cells)", x_label = NULL, 
+  seurat_object = SeuratObj,
+  aesX = paste0("Cluster", analyses$viz_clustering), fill = "Sample",
+  y_label = "Composition (Number of cells)", x_label = NULL,
   y_lower_limit = 0, y_break = 1000
 )
 
 pdf(paste0(
-  densityplotDirectory, ObjName, Subset, 
+  densityplotDirectory, ObjName, Subset,
   "res", RESOLUTION, "_number of cells per ", analyses$viz_clustering,
   " Cluster and sample barplot.pdf"
 ), width = 8, height = 5.5, family = FONT_FAMILY
@@ -245,8 +195,9 @@ dev.off()
 
 
 ################# CLUSTER / SAMPLE DIMPLOTS ###################
+
 U1 <- plot_umap(
-  seurat_object = SeuratObj, 
+  seurat_object = SeuratObj,
   group_by = paste0("Cluster", analyses$viz_clustering),
   reduction = paste0("umap", analyses$viz_clustering),
   title = "Clusters", xlab = "UMAP1", ylab = "UMAP2",
@@ -257,24 +208,18 @@ U1 <- plot_umap(
 
 pdf(paste0(
   UMAPDirectory, ObjName, Subset,
-  "_res", RESOLUTION, 
+  "_res", RESOLUTION,
   "_", analyses$viz_clustering, "Clusters_UMAP.pdf"
 ), width = 5.5, height = 6, family = FONT_FAMILY
 )
 print(U1)
 dev.off()
 
-
-if (analyses$use_chromatose) {
-  color_scheme <- "chromatose"
-} else {
-  color_scheme <- "nourpal"
-}
 U2 <- plot_umap(
-  seurat_object = SeuratObj, 
+  seurat_object = SeuratObj,
   group_by = "Sample",
-  color_scheme = color_scheme,
-  subtype_by = c("blood", "tumor"),
+  color_scheme = analyses$hue_palette,
+  subtype_by = analyses$chromatose_subtype_by,
   reduction = paste0("umap", analyses$viz_clustering),
   title = "Samples", xlab = "UMAP1", ylab = "UMAP2",
   legend_position = "bottom",
@@ -283,7 +228,7 @@ U2 <- plot_umap(
 
 pdf(paste0(
   UMAPDirectory, ObjName, Subset,
-  "_res", RESOLUTION, 
+  "_res", RESOLUTION,
   "_Samples_UMAP.pdf"
 ), width = 8, height = 7, family = FONT_FAMILY
 )
@@ -293,12 +238,12 @@ dev.off()
 
 
 U3 <- plot_umap (
-  seurat_object = SeuratObj, 
+  seurat_object = SeuratObj,
   group_by = paste0("Cluster", analyses$viz_clustering),
   reduction = paste0("umap", analyses$viz_clustering),
   title = "Clusters", xlab = "UMAP1", ylab = "UMAP2",
   legend_position = "right",
-  title_font_size = 16, x_font_size = 16, y_font_size = 16, 
+  title_font_size = 16, x_font_size = 16, y_font_size = 16,
   pt_size = 0.2, split_by = "Sample", ncol_dimplot = 2,
   color_reverse = TRUE
 )
@@ -307,17 +252,17 @@ pdf(paste0(
   UMAPDirectory, ObjName, Subset,
   "_res", RESOLUTION, "_",
   analyses$viz_clustering, "Clusters_UMAP_Iteration_by_sample.pdf"
-), width = 12, height = 2.5 * length(unique(SeuratObj$Sample)), 
+), width = 12, height = 2.5 * length(unique(SeuratObj$Sample)),
   family = FONT_FAMILY
 )
 print(U3)
 dev.off()
 
 
-# ################# (CUSTOM) CELL POPULATION: CLUSTIFYR ###################
-# # determine which reference matrix / gene list to use
-# # REF_MATRIX = cbmc_ref
-# 
+################# (CUSTOM) CELL POPULATION: CLUSTIFYR ###################
+# determine which reference matrix / gene list to use
+REF_MATRIX <- cbmc_ref
+
 # refSeuratObj <- readRDS(
 #   paste0(
 #     RobjDir,
@@ -325,23 +270,48 @@ dev.off()
 #     "Allhuman-11-3-21.rds"
 #   )
 # )
-# 
-# 
+
+
+# refSeuratObj_subsampled <- refSeuratObj[
+#   , sample(colnames(refSeuratObj), size = 9000, replace = F)
+#   ]
+#
+# saveRDS(
+#   refSeuratObj_subsampled,
+#   file = paste0(
+#     RobjDir,
+#     "GBMAtlas/",
+#     "Allhuman-11-3-21_subsampled_9000.rds"
+#   )
+# )
+#
+# SeuratObj_subsampled <- SeuratObj[
+#   , sample(colnames(SeuratObj), size = 1000, replace = F)
+# ]
+#
+# saveRDS(
+#   SeuratObj_subsampled,
+#   file = paste0(
+#     RobjDirectory, ObjName, Subset,
+#     "_res", RESOLUTION, "_subsampled_1000.rds"
+#   )
+# )
+
 # gam_git_gib <- list(
 #   Myeloid = "GAM",
 #   TCells = "GIT",
 #   BCells = "GIB"
 # )
-#   
+#
 # CellInfo <- refSeuratObj@meta.data
 # for (i in 1:length(gam_git_gib)) {
 #   CellInfo$Assignment[
 #     which(str_detect(refSeuratObj$Assignment, names(gam_git_gib[i])))
 #   ] <- gam_git_gib[[i]]
 # }
-# 
+#
 # refSeuratObj$Assignment <- CellInfo$Assignment
-# 
+#
 # saveRDS(
 #   refSeuratObj,
 #   file = paste0(
@@ -350,87 +320,86 @@ dev.off()
 #     "Allhuman-11-3-21.rds"
 #   )
 # )
-# 
-# 
-# 
+
+
 # # if column with assignment has space in it
 # REF_MATRIX <- seurat_ref(
 #   seurat_object = refSeuratObj,
 #   cluster_col = "Assignment"
 # )
-# 
-# 
-# # clustify using
-# correlation_matrix <- clustify(
-#   input = SeuratObj[[analyses$clustifyr_assay]]@data,
-#   metadata = SeuratObj@meta.data,
-#   cluster_col = paste0("Cluster", analyses$viz_clustering),
-#   ref_mat = REF_MATRIX,
-#   query_genes = FindVariableFeatures(
-#       SeuratObj, assay = "RNApreSCT"
-#     )[["RNApreSCT"]]@var.features
-# )
-# 
-# # predicted type with correlation coefficients
-# correlation_coefficients <- cor_to_call(
-#   cor_mat = correlation_matrix,
-#   cluster_col = paste0("Cluster", analyses$viz_clustering)
-# )
-# 
-# # plot heatmap
-# pdf(paste0(
-#   heatDirectory, "heatmap", ObjName, Subset,
-#   "_res", RESOLUTION, "_cellIdentities_",
-#   analyses$viz_clustering, "Cluster.pdf"
-# ), width = 7, height = 6
-# )
-# heatmap.2(
-#   correlation_matrix,
-#   col=viridis, trace = "none",
-#   dendrogram = "none",
-#   offsetRow= -29, margins = c(8, 5)
-# )
-# dev.off()
-# 
-# # add metadata to SeuratObj
-# SeuratObj@meta.data <- call_to_metadata(
-#   res = correlation_coefficients,
-#   metadata = SeuratObj@meta.data,
-#   cluster_col = paste0("Cluster", analyses$viz_clustering)
-# )
-# 
-# SeuratObj$clustifyr <- SeuratObj$type
-# SeuratObj$clustifyr_r <- SeuratObj$r
-# SeuratObj$type <- NULL
-# SeuratObj$r <- NULL
-# 
-# 
-# 
-# ################# (CUSTOM) CELL POPULATIONS: ASSIGNMENT ###############
-# if (
-#   ! is.na(analyses$which_assignment) &
-#   analyses$which_assignment %in% colnames(SeuratObj@meta.data)
-# ) {
-#   SeuratObj$Assignment <- SeuratObj[[analyses$which_assignment]]
-# }
-# 
-# # for manual hand correction
-# for (new_assignment in names(analyses$cluster_to_assignment)) {
-#   cluster = paste0(analyses$cluster_prefix, new_assignment)
-#   SeuratObj$Assignment[
-#     which(str_detect(
-#       SeuratObj[[paste0("Cluster", analyses$viz_clustering)]][, 1], cluster
-#       ))
-#     ] <- analyses$cluster_to_assignment[[new_assignment]]
-# }
-# 
-# write.csv(
-#   SeuratObj[["Assignment"]], 
-#   paste0(
-#     LoupeDirectory, ObjName, Subset,
-#     "_assignments (", analyses$which_assignment, ") .csv"
-#   )
-# )
+
+
+# clustify using
+correlation_matrix <- clustify(
+  input = SeuratObj[[analyses$clustifyr_assay]]@data,
+  metadata = SeuratObj@meta.data,
+  cluster_col = paste0("Cluster", analyses$viz_clustering),
+  ref_mat = REF_MATRIX,
+  query_genes = FindVariableFeatures(
+      SeuratObj, assay = "RNApreSCT"
+    )[["RNApreSCT"]]@var.features
+)
+
+# predicted type with correlation coefficients
+correlation_coefficients <- cor_to_call(
+  cor_mat = correlation_matrix,
+  cluster_col = paste0("Cluster", analyses$viz_clustering)
+)
+
+# plot heatmap
+pdf(paste0(
+  heatDirectory, "heatmap", ObjName, Subset,
+  "_res", RESOLUTION, "_cellIdentities_",
+  analyses$viz_clustering, "Cluster.pdf"
+), width = 7, height = 6
+)
+heatmap.2(
+  correlation_matrix,
+  col=viridis, trace = "none",
+  dendrogram = "none",
+  offsetRow= -29, margins = c(8, 5)
+)
+dev.off()
+
+# add metadata to SeuratObj
+SeuratObj@meta.data <- call_to_metadata(
+  res = correlation_coefficients,
+  metadata = SeuratObj@meta.data,
+  cluster_col = paste0("Cluster", analyses$viz_clustering)
+)
+
+SeuratObj$clustifyr <- SeuratObj$type
+SeuratObj$clustifyr_r <- SeuratObj$r
+SeuratObj$type <- NULL
+SeuratObj$r <- NULL
+
+
+
+################# (CUSTOM) CELL POPULATIONS: ASSIGNMENT ###############
+if (
+  ! is.na(analyses$which_assignment) &
+  analyses$which_assignment %in% colnames(SeuratObj@meta.data)
+) {
+  SeuratObj$Assignment <- SeuratObj[[analyses$which_assignment]]
+}
+
+# for manual hand correction
+for (new_assignment in names(analyses$cluster_to_assignment)) {
+  cluster = paste0(analyses$cluster_prefix, new_assignment)
+  SeuratObj$Assignment[
+    which(str_detect(
+      SeuratObj[[paste0("Cluster", analyses$viz_clustering)]][, 1], cluster
+      ))
+    ] <- analyses$cluster_to_assignment[[new_assignment]]
+}
+
+write.csv(
+  SeuratObj[["Assignment"]],
+  paste0(
+    LoupeDirectory, ObjName, Subset,
+    "_assignments (", analyses$which_assignment, ") .csv"
+  )
+)
 ################# ASSIGNMENT BARPLOTS ###################
 P5 <- plot_bargraph (
   seurat_object = SeuratObj, aesX = "Sample", fill = "Assignment",
@@ -485,7 +454,7 @@ pdf(paste0(
   "_percentage of cells per major population and Sample (", 
   analyses$which_assignment,
   ") barplot.pdf"
-), width = 7, height = 5.5, family = FONT_FAMILY
+), width = 8, height = 6, family = FONT_FAMILY
 )
 print(P7)
 dev.off()
@@ -532,8 +501,8 @@ U4 <- plot_umap(
   xlab = "UMAP1", ylab = "UMAP2",
   legend_position = "bottom",
   ncol_guide = 4,
-  label_clusters = TRUE,
-  label_size = 3,
+  label_clusters = TRUE, 
+  label_size = 5,
   color_reverse = FALSE
 )
 
@@ -624,7 +593,22 @@ for (cluster_name in names(Clusterspecificgenes)) {
     group_by = paste0("Cluster", analyses$viz_clustering),
     features = cluster_genes, title = cluster_name
   )
+  
   dotgraphs_GEX[[cluster_name]] <- D1
+  
+  png(paste0(
+    dotDirectory, "dotplot ", ObjName, Subset,
+    " by predefined Cluster genes ", analyses[["denovo_lineage"]],
+    " ", cluster_name, ".png"
+  ), 
+  width = 700, 
+  height = 550, 
+  family = FONT_FAMILY
+  )
+  print(D1)
+  dev.off()
+  
+
 }
 
 dot_plots_GEX <- ggarrange(
@@ -634,10 +618,12 @@ dot_plots_GEX <- ggarrange(
 
 pdf(paste0(
   dotDirectory, "dotplot ", ObjName, Subset,
-  "by predefined Cluster.pdf"
-), 
-width = 10, 
-height = length(Clusterspecificgenes) * 8, 
+  " by predefined Cluster ",
+  analyses[["denovo_lineage"]],
+  ".pdf"
+),
+width = 10,
+height = length(Clusterspecificgenes) * 8,
 family = FONT_FAMILY
 )
 print(dot_plots_GEX)
@@ -693,6 +679,18 @@ for (cluster_name in names(Clusterspecificgenes)) {
   )
   dotgraphs_ADT[[cluster_name]] <- D1
   
+  png(paste0(
+    dotDirectory, "dotplot ", ObjName, Subset,
+    " by predefined Cluster ADT ", analyses[["denovo_lineage"]],
+    " ", cluster_name, ".png"
+  ), 
+  width = 700, 
+  height = 550, 
+  family = FONT_FAMILY
+  )
+  print(D1)
+  dev.off()
+  
 }
 
 dot_plots_ADT <- ggarrange(
@@ -702,7 +700,8 @@ dot_plots_ADT <- ggarrange(
 
 pdf(paste0(
   dotDirectory, "dotplot ", ObjName, Subset,
-  "by predefined Cluster.pdf"
+  "by predefined Cluster ", analyses[["denovo_lineage"]],
+  ".pdf"
 ), 
 width = 10, 
 height = length(Clusterspecificgenes) * 8, 
@@ -1043,250 +1042,248 @@ print(U7)
 dev.off()
 
 
-################### PSEUDOTIME SLINGSHOT ##################
-# figure out directory
-SlingDirectory <- paste0(PseudoDirectory, "/slingshot/")
-if (! dir.exists(SlingDirectory)) {
-  dir.create(SlingDirectory)
-}
-
-# figure out column for colors (numbered by int, rather than char)
-SeuratObj <- meta_category_to_int(SeuratObj, "Assignment", "Assignment_ColNo")
-SeuratObj <- meta_category_to_int(SeuratObj, "ClusterRNA", "Cluster_ColNo")
-
-
-# color palettes
-ClusterColors <- Nour_pal("all", reverse = T)(
-  length(unique(SeuratObj$ClusterRNA))
-)
-AssignmentColors <- Nour_pal("all")(
-  length(unique(SeuratObj$Assignment))
-)
-
-DefaultAssay(SeuratObj) <- "RNA"
-SeuratObj.sce = as.SingleCellExperiment(SeuratObj)
-
-SeuratObj.sce <- slingshot(
-  SeuratObj.sce, 
-  clusterLabels = "Assignment", reducedDim = "UMAPRNA",
-  reassign = F, maxit = 10, allow.breaks = T,
-  start.clus = "CD8_NaiveLike"
-)
-
-# add metadata back to SeuratObj
-SeuratObj <- AddMetaData(
-  object = SeuratObj, 
-  metadata = SeuratObj.sce$slingPseudotime_1, 
-  col.name = 'slingPseudotime_1'
-)
-SeuratObj <- AddMetaData(
-  object = SeuratObj, 
-  metadata = SeuratObj.sce$slingPseudotime_2, 
-  col.name = 'slingPseudotime_2'
-)
-SeuratObj <- AddMetaData(
-  object = SeuratObj, 
-  metadata = SeuratObj.sce$slingPseudotime_3, 
-  col.name = 'slingPseudotime_3'
-)
-
-
-pdf(paste0(
-  SlingDirectory, ObjName, Subset,
-  "res", RESOLUTION, "slingshot umap.pdf"
-), width = 5, height = 5, family = "ArialMT", onefile = T
-)
-
-# colored by cluster
-plot_slingshot_umap(
-  SeuratObj.sce,
-  ClusterColors, "Cluster_ColNo", 
-  "Slingshot pseudotime, colored by cluster"
-)
-
-# colored by assignment
-plot_slingshot_umap(
-  SeuratObj.sce,
-  AssignmentColors, "Assignment_ColNo", 
-  "Slingshot pseudotime, colored by assignment"
-)
-dev.off()
-
-
-
-
-# by assignment 1
-G1 <- plot_slingshot_pseudotime(
-  SeuratObj, "slingPseudotime_1", "Assignment", AssignmentColors
-)
-
-# by cluster 1
-G2 <- plot_slingshot_pseudotime(
-  SeuratObj, "slingPseudotime_1", "ClusterRNA", ClusterColors
-)
-
-# by assignment 2
-G3 <- plot_slingshot_pseudotime(
-  SeuratObj, "slingPseudotime_2", "Assignment", AssignmentColors
-)
-
-# by cluster 2
-G4 <- plot_slingshot_pseudotime(
-  SeuratObj, "slingPseudotime_2", "ClusterRNA", ClusterColors
-)
-
-# by assignment 3
-G5 <- plot_slingshot_pseudotime(
-  SeuratObj, "slingPseudotime_3", "Assignment", AssignmentColors
-)
-
-# by cluster 3
-G6 <- plot_slingshot_pseudotime(
-  SeuratObj, "slingPseudotime_3", "ClusterRNA", ClusterColors
-)
-
-
-pdf(paste0(
-  SlingDirectory, ObjName, Subset,
-  "res", RESOLUTION, "slingshot time.pdf"
-), width = 5, height = 5, family = "ArialMT", onefile = T
-)
-print(G1)
-print(G3)
-print(G5)
-print(G2)
-print(G4)
-print(G6)
-dev.off()
-
-
-################### PSEUDOTIME MONOCLE3 ##################
-# figure out directories
-MonocleDirectory <- paste0(PseudoDirectory, "/monocle3/")
-if (! dir.exists(MonocleDirectory)) {
-  dir.create(MonocleDirectory)
-}
-MonocleFeatureDirectory <- paste0(MonocleDirectory, "/FeatureMaps/")
-if (! dir.exists(MonocleFeatureDirectory)) {
-  dir.create(MonocleFeatureDirectory)
-}
-
-# rename umap so that monocle3 recognizes it
-SeuratObj@reductions$umap <- SeuratObj@reductions$umapRNA
-# run monocle
-SeuratObj.cds <- as.cell_data_set(SeuratObj)
-SeuratObj.cds <- cluster_cells(
-  cds = SeuratObj.cds, reduction_method = "UMAP"
-)
-# learn mst
-SeuratObj.cds <- learn_graph(
-  SeuratObj.cds, verbose = T
-)
-# find order of graph
-get_earliest_principal_node <- function(cds, early_bin = "CD8_NaiveLike"){
-  cell_ids <- which(colData(cds)[, "Assignment"] == early_bin)
-  closest_vertex <-
-    cds@principal_graph_aux[["UMAP"]]$pr_graph_cell_proj_closest_vertex
-  closest_vertex <- as.matrix(closest_vertex[colnames(cds), ])
-  root_pr_nodes <-
-    igraph::V(principal_graph(cds)[["UMAP"]])$name[as.numeric(names(
-      which.max(table(closest_vertex[cell_ids,]))
-    ))]
-  
-  root_pr_nodes
-}
-SeuratObj.cds <- order_cells(
-  SeuratObj.cds, root_pr_nodes = get_earliest_principal_node(SeuratObj.cds)
-)
-
-
-xx = fData(SeuratObj.cds)
-xx$gene_short_name = row.names(xx)
-fData(SeuratObj.cds) = xx
-
-# feature maps
-for (cluster_name in names(Clusterspecificgenes)) {
-  cluster_genes <- Clusterspecificgenes[[cluster_name]]
-  cluster_genes <- case_sensitive_features(
-    SeuratObj,
-    c(cluster_genes),
-    assay = "RNA"
-  )
-  PP1 <- plot_cells(
-    cds = SeuratObj.cds, scale_to_range = T, cell_size = 0.7,
-    label_cell_groups = FALSE,
-    show_trajectory_graph = TRUE, trajectory_graph_color = "black",
-    trajectory_graph_segment_size = 0.7,
-    label_leaves = TRUE, min_expr = 1,
-    label_branch_points = TRUE, genes = cluster_genes
-  ) + theme_min()
-  # plot cells
-  pdf(paste0(
-    MonocleFeatureDirectory, ObjName, Subset, 
-    " monocle 3 ", cluster_name, " markers.pdf"
-  ), 
-  width = length(cluster_genes) * 1.5, 
-  height = length(cluster_genes),
-  family = "ArialMT"
-  )
-  print(PP1)
-  dev.off()
-}
-
-
-# by cluster
-PP2 <- plot_cells(
-  cds = SeuratObj.cds,
-  label_cell_groups = FALSE,
-  color_cells_by = "cluster",
-  show_trajectory_graph = TRUE,
-  label_leaves = TRUE,
-  cell_size = 1,
-  label_branch_points = TRUE, 
-  trajectory_graph_color = "white",
-  trajectory_graph_segment_size = 1
-) + scale_color_Nour(palette="all",reverse = F,discrete = T) + 
-  theme_gray() +
-  scale_y_continuous(breaks=NULL) +
-  scale_x_continuous(breaks=NULL) + 
-  xlab("UMAP1") + 
-  ylab("UMAP2") +
-  labs(title = "Monocle3 Pseudotime") +
-  FontSize(x.title = 16, y.title = 16, main = 16) + 
-  theme(legend.position = "bottom",text =element_text(size=15)) +
-  guides(
-    colour = guide_legend(
-      title = "Cluster", 
-      override.aes = list(size = 5),
-      title.theme = element_text(size = 15, face = "bold"),
-      title.position = "top",
-      label.theme = element_text(size=15)
-    )
-  )
-
-pdf(paste0(
-  MonocleDirectory, ObjName, Subset, 
-  " monocle 3 colored by cluster.pdf"
-),width = 5, height = 6, family = "ArialMT"
-)
-print(PP2)
-dev.off()
-
-# by time
-PP3 <- plot_cells(
-  SeuratObj.cds,
-  color_cells_by = "pseudotime",
-  label_cell_groups = FALSE,
-  label_leaves = TRUE,
-  label_branch_points = TRUE
-)
-pdf(paste0(
-  MonocleDirectory, ObjName, Subset, 
-  " monocle 3 colored by pseudotime.pdf"
-),width = 7, height = 6, family = "ArialMT"
-)
-print(PP3)
-dev.off()
+# ################### PSEUDOTIME SLINGSHOT ##################
+# # figure out directory
+# SlingDir <- paste0(PseudoDirectory, "/slingshot/")
+# if (! dir.exists(SlingDir)) {
+#   dir.create(SlingDir)
+# }
+# 
+# # figure out column for colors (numbered by int, rather than char)
+# SeuratObj <- meta_category_to_int(SeuratObj, "Assignment", "Assignment_ColNo")
+# SeuratObj <- meta_category_to_int(SeuratObj, "ClusterRNA", "Cluster_ColNo")
+# 
+# 
+# # color palettes
+# ClusterColors <- Nour_pal("all", reverse = T)(
+#   length(unique(SeuratObj$ClusterRNA))
+# )
+# AssignmentColors <- Nour_pal("all")(
+#   length(unique(SeuratObj$Assignment))
+# )
+# 
+# DefaultAssay(SeuratObj) <- "RNA"
+# SeuratObj.sce = as.SingleCellExperiment(SeuratObj)
+# 
+# start_clusters <- c("CD4_NaiveLike", "CD8_NaiveLike")
+# for (start_cluster in start_clusters) {
+# 
+#   # remove slingshot on second round
+#   
+#   if ("slingPseudotime_1" %in% colnames(colData(SeuratObj.sce))) {
+#     SeuratObj.sce$slingPseudotime_1 <- NULL
+#   }
+#   
+#   SeuratObj.sce <- slingshot(
+#     SeuratObj.sce,
+#     clusterLabels = "Assignment", reducedDim = "UMAPRNA",
+#     reassign = F, maxit = 10, allow.breaks = T,
+#     start.clus = start_cluster
+#   )
+#   
+#   # add metadata back to SeuratObj
+#   SeuratObj <- AddMetaData(
+#     object = SeuratObj,
+#     metadata = SeuratObj.sce$slingPseudotime_1,
+#     col.name = 'slingPseudotime_1'
+#   )
+#   print(head(SeuratObj$slingPseudotime_1))
+#   
+#   SlingDirectory <- paste0(SlingDir, "/", start_cluster, "/")
+#   if (! dir.exists(SlingDirectory)) {
+#     dir.create(SlingDirectory)
+#   }
+#   
+#   
+#   pdf(paste0(
+#     SlingDirectory, ObjName, Subset,
+#     "res", RESOLUTION, "slingshot umap.pdf"
+#   ), width = 5, height = 5, family = "ArialMT", onefile = T
+#   )
+#   
+#   # colored by cluster
+#   plot_slingshot_umap(
+#     SeuratObj.sce,
+#     ClusterColors, "Cluster_ColNo",
+#     "Slingshot pseudotime, colored by cluster"
+#   )
+#   
+#   # colored by assignment
+#   plot_slingshot_umap(
+#     SeuratObj.sce,
+#     AssignmentColors, "Assignment_ColNo",
+#     "Slingshot pseudotime, colored by assignment"
+#   )
+#   dev.off()
+#   
+#   
+#   
+#   
+#   # by assignment 1
+#   G1 <- plot_slingshot_pseudotime(
+#     SeuratObj, "slingPseudotime_1", "Assignment", AssignmentColors
+#   )
+#   
+#   # by cluster 1
+#   G2 <- plot_slingshot_pseudotime(
+#     SeuratObj, "slingPseudotime_1", "ClusterRNA", ClusterColors
+#   )
+# 
+#   
+#   pdf(paste0(
+#     SlingDirectory, ObjName, Subset,
+#     "res", RESOLUTION, "slingshot time.pdf"
+#   ), width = 5, height = 5, family = "ArialMT", onefile = T
+#   )
+#   print(G1)
+#   print(G2)
+#   dev.off()
+# 
+# }
+# ################### PSEUDOTIME MONOCLE3 ##################
+# # figure out directories
+# MonocleDir <- paste0(PseudoDirectory, "/monocle3/")
+# if (! dir.exists(MonocleDir)) {
+#   dir.create(MonocleDir)
+# }
+# 
+# 
+# # rename umap so that monocle3 recognizes it
+# SeuratObj@reductions$umap <- SeuratObj@reductions$umapRNA
+# # run monocle
+# SeuratObj.cds <- as.cell_data_set(SeuratObj)
+# SeuratObj.cds <- cluster_cells(
+#   cds = SeuratObj.cds, reduction_method = "UMAP"
+# )
+# # learn mst
+# SeuratObj.cds <- learn_graph(
+#   SeuratObj.cds, verbose = T
+# )
+# # find order of graph
+# get_earliest_principal_node <- function(cds, early_bin = start_cluster){
+#   cell_ids <- which(colData(cds)[, "Assignment"] == early_bin)
+#   closest_vertex <-
+#     cds@principal_graph_aux[["UMAP"]]$pr_graph_cell_proj_closest_vertex
+#   closest_vertex <- as.matrix(closest_vertex[colnames(cds), ])
+#   root_pr_nodes <-
+#     igraph::V(principal_graph(cds)[["UMAP"]])$name[as.numeric(names(
+#       which.max(table(closest_vertex[cell_ids,]))
+#     ))]
+# 
+#   root_pr_nodes
+# }
+# 
+# for (start_cluster in start_clusters) {
+#   MonocleDirectory <- paste0(MonocleDir, "/", start_cluster, "/")
+#   if (! dir.exists(MonocleDirectory)) {
+#     dir.create(MonocleDirectory)
+#   }
+#   
+#   MonocleFeatureDirectory <- paste0(MonocleDirectory, "/FeatureMaps/")
+#   if (! dir.exists(MonocleFeatureDirectory)) {
+#     dir.create(MonocleFeatureDirectory)
+#   }
+#   
+#   
+#   SeuratObj.cds <- order_cells(
+#     SeuratObj.cds, 
+#     root_pr_nodes = get_earliest_principal_node(
+#       SeuratObj.cds, early_bin = start_cluster
+#       )
+#   )
+#   
+#   
+#   xx = fData(SeuratObj.cds)
+#   xx$gene_short_name = row.names(xx)
+#   fData(SeuratObj.cds) = xx
+#   
+#   # feature maps
+#   for (cluster_name in names(Clusterspecificgenes)) {
+#     cluster_genes <- Clusterspecificgenes[[cluster_name]]
+#     cluster_genes <- case_sensitive_features(
+#       SeuratObj,
+#       c(cluster_genes),
+#       assay = "RNA"
+#     )
+#     PP1 <- plot_cells(
+#       cds = SeuratObj.cds, scale_to_range = T, cell_size = 0.7,
+#       label_cell_groups = FALSE,
+#       show_trajectory_graph = TRUE, trajectory_graph_color = "black",
+#       trajectory_graph_segment_size = 0.7,
+#       label_leaves = TRUE, min_expr = 1,
+#       label_branch_points = TRUE, genes = cluster_genes
+#     ) + theme_min()
+#     
+#     
+#     # plot cells
+#     pdf(paste0(
+#       MonocleFeatureDirectory, ObjName, Subset,
+#       " monocle 3 ", cluster_name, " markers.pdf"
+#     ),
+#     width = length(cluster_genes) * 1.5,
+#     height = length(cluster_genes),
+#     family = "ArialMT"
+#     )
+#     print(PP1)
+#     dev.off()
+#   }
+#   
+#   
+#   # by cluster
+#   PP2 <- plot_cells(
+#     cds = SeuratObj.cds,
+#     label_cell_groups = FALSE,
+#     color_cells_by = "cluster",
+#     show_trajectory_graph = TRUE,
+#     label_leaves = TRUE,
+#     cell_size = 1,
+#     label_branch_points = TRUE,
+#     trajectory_graph_color = "white",
+#     trajectory_graph_segment_size = 1
+#   ) + scale_color_Nour(palette="all",reverse = F,discrete = T) +
+#     theme_gray() +
+#     scale_y_continuous(breaks=NULL) +
+#     scale_x_continuous(breaks=NULL) +
+#     xlab("UMAP1") +
+#     ylab("UMAP2") +
+#     labs(title = "Monocle3 Pseudotime") +
+#     FontSize(x.title = 16, y.title = 16, main = 16) +
+#     theme(legend.position = "bottom",text =element_text(size=15)) +
+#     guides(
+#       colour = guide_legend(
+#         title = "Cluster",
+#         override.aes = list(size = 5),
+#         title.theme = element_text(size = 15, face = "bold"),
+#         title.position = "top",
+#         label.theme = element_text(size=15)
+#       )
+#     )
+#   
+#   pdf(paste0(
+#     MonocleDirectory, ObjName, Subset,
+#     " monocle 3 colored by cluster.pdf"
+#   ),width = 5, height = 6, family = "ArialMT"
+#   )
+#   print(PP2)
+#   dev.off()
+#   
+#   # by time
+#   PP3 <- plot_cells(
+#     SeuratObj.cds,
+#     color_cells_by = "pseudotime",
+#     label_cell_groups = FALSE,
+#     label_leaves = TRUE,
+#     label_branch_points = TRUE
+#   )
+#   pdf(paste0(
+#     MonocleDirectory, ObjName, Subset,
+#     " monocle 3 colored by pseudotime.pdf"
+#   ),width = 7, height = 6, family = "ArialMT"
+#   )
+#   print(PP3)
+#   dev.off()
+# }
+# 
 
 ############## SAVE SEURAT AND SESSION INFO, LOOSE ENDS ################
 saveRDS(

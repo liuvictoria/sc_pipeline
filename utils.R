@@ -1,76 +1,93 @@
 ################# INSTALL / LOAD PACKAGES  ##############
-# # install them first if necessary. Only need to install once
-# if (!requireNamespace("BiocManager", quietly = TRUE)) {
-#   install.packages("BiocManager")
-# }
-# BiocManager::install(version = "3.14")
-# 
-# install.packages("devtools")
+if (F) {
+  # R -f test.R
+  # install them first if necessary. Only need to install once
+  if (!requireNamespace("BiocManager", quietly = TRUE)) {
+    install.packages("BiocManager")
+  }
+  BiocManager::install(version = "3.14")
+  
+  install.packages("devtools")
+  devtools::install_github("jakesherman/easypackages")
+  
+  
+  library(devtools)
+  library(easypackages)
 
-library(devtools)
-library(easypackages)
+  # only need to install once
+  remotes::install_github("satijalab/sctransform", ref = "develop")
+  BiocManager::install(c(
+    'BiocGenerics', 'DelayedArray', 'DelayedMatrixStats',
+    'limma', 'S4Vectors', 'SingleCellExperiment',
+    'SummarizedExperiment', 'batchelor', 'Matrix.utils'
+  ))
 
-# only need to install once
-# devtools::install_github("satijalab/sctransform", ref = "develop")
-# devtools::install_github("jokergoo/ComplexHeatmap")
-# devtools::install_github('cole-trapnell-lab/leidenbase')
-# devtools::install_github('cole-trapnell-lab/monocle3')
-# BiocManager::install("ComplexHeatmap")
-# BiocManager::install("SingleCellExperiment")
-# BiocManager::install('limma')
-# BiocManager::install("clustifyr")
-# BiocManager::install("slingshot")
-# # gamma poisson generalized linear model
-# BiocManager::install("glmGamPoi")
-# BiocManager::install("celldex")
-# BiocManager::install("SingleR")
-# BiocManager::install("biomaRt")
-# BiocManager::install("scDblFinder")
-# BiocManager::install("miQC")
-# BiocManager::install("GEOquery")
-# BiocManager::install(c(
-#   'BiocGenerics', 'DelayedArray', 'DelayedMatrixStats',
-#   'limma', 'S4Vectors', 'SingleCellExperiment',
-#   'SummarizedExperiment', 'batchelor', 'Matrix.utils'
-#   ))
-
-
-
-# install.packages("tidyverse")
-# install.packages('clustree') 
-# install.packages("pheatmap")
-# install.packages("corrplot")
-
-
-# remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')
-# # remotes::install_github("mojaveazure/seurat-disk")
-# remotes::install_github("carmonalab/UCell", ref="v1.3")
-# remotes::install_github("carmonalab/scGate")
-# remotes::install_github("carmonalab/ProjecTILs")
-# remotes::install_github('satijalab/seurat-wrappers')
-# devtools::install_github("sjessa/ggmin")
-# install.packages("magick")
-# install.packages("gmailr", repos="http://cran.r-project.org")
-# install.packages("rjson")
-# install.packages("PerformanceAnalytics")
+  
+  devtools::install_github("jokergoo/ComplexHeatmap")
+  devtools::install_github('cole-trapnell-lab/leidenbase')
+  devtools::install_github('cole-trapnell-lab/monocle3')
+  BiocManager::install("ComplexHeatmap")
+  BiocManager::install("clustifyr")
+  BiocManager::install("slingshot")
+  # gamma poisson generalized linear model
+  BiocManager::install("glmGamPoi")
+  BiocManager::install("celldex")
+  BiocManager::install("SingleR")
+  BiocManager::install("biomaRt")
+  BiocManager::install("scDblFinder")
+  BiocManager::install("miQC")
+  BiocManager::install("GEOquery")
+  
+  BiocManager::install(c(
+    "clustifyr", "slingshot", "glmGamPoi", "celldex", "SingleR",
+    "biomaRt", "scDblFinder", "miQC", "GEOquery"
+    ))
+  
+  BiocManager::install(c("celldex", "biomaRt"))
+  
+  install.packages("ggpubr")
+  install.packages('Seurat')
+  install.packages("tidyverse")
+  install.packages('clustree')
+  install.packages("pheatmap")
+  install.packages("corrplot")
+  install.packages("extrafont")
+  
+  
+  remotes::install_github("mojaveazure/seurat-disk")
+  remotes::install_github("carmonalab/UCell", ref = "v1.3")
+  remotes::install_github("carmonalab/scGate")
+  remotes::install_github("carmonalab/ProjecTILs")
+  devtools::install_github('satijalab/seurat-wrappers')
+  devtools::install_github("sjessa/ggmin")
+  install.packages("magick")
+  install.packages("rjson")
+  install.packages("PerformanceAnalytics")
+  
+  
+}
 
 MyPackages <- c(
   "dplyr", "ggplot2", "ggpubr", "gridExtra", "viridis", "egg",
   "grid", "lattice", "gtools", "Biobase", "RColorBrewer", "tibble",
   "Seurat", "cowplot", "patchwork", "stringr", "ComplexHeatmap", 
   "SingleCellExperiment", "ggmin", "Nourpal", "Cairo",
-  "DoubletFinder", "harmony", "magick", "viridis", "limma", 
-  "glmGamPoi", "gmailr", "rjson", "here", "SeuratDisk",
+  "harmony", "magick", "viridis", "limma", 
+  "glmGamPoi", "rjson", "here", "SeuratDisk",
   "gplots", "clustifyr", "fgsea", "purrr", "clustree",
   "SingleR", "celldex", "ProjecTILs", "biomaRt", "data.table",
   "umap", "pheatmap", "scDblFinder", "miQC", "SeuratWrappers",
   "PerformanceAnalytics", "corrplot", "GEOquery",
-  "slingshot", "ggbeeswarm", "monocle3"
+  "slingshot", "ggbeeswarm", "monocle3", "extrafont",
+  "jpeg"
 )
 
+library(devtools)
+library(easypackages)
 
 # similar to libaries, but will install package as well
 packages(MyPackages)
+loadfonts()
 
 # get experiment parameters
 config <- fromJSON(file = here("config.json"))
@@ -187,7 +204,7 @@ if (! dir.exists(ADTDirectory) & config$USE_ADT == TRUE) {
 }
 
 SubtypeCorrDirectory <- paste0(OutputDirectory, "/SubtypeCorrelations/")
-if (! dir.exists(SubtypeCorrDirectory) & config$preprocess_existing_RDS) {
+if (! dir.exists(SubtypeCorrDirectory)) {
   dir.create(SubtypeCorrDirectory)
 }
 
@@ -228,10 +245,27 @@ get_colors <- function(
     names(colors) = sort(unique(
       as.vector(as.matrix(seurat_object[[color_by]]))
     ))
-  }
-  else if (color_scheme == "chromatose") {
+  } else if (color_scheme == "nourpal_hot_cool") {
+    stopifnot(length(subtype_by) == 2)
+    hues <- c("cool", "hot")
+    samples <- unique(as.vector(as.matrix(seurat_object[[color_by]])))
+    colors <- list()
+    for (idx_subtype in 1:length(subtype_by)) {
+      subtype <- subtype_by[[idx_subtype]]
+      subtype_samples <- c()
+      for (sample in samples) {
+        if (grepl(subtype, sample, fixed = TRUE)) {
+          subtype_samples <- c(subtype_samples, sample)
+        }
+        subtype_colors <- Nour_pal(hues[idx_subtype])(length(subtype_samples))
+        names(subtype_colors) <- subtype_samples
+      }
+      colors <- c(colors, subtype_colors)
+      }
+    } else if (color_scheme == "chromatose") {
     colors <- list()
     samples <- unique(as.vector(as.matrix(seurat_object[[color_by]])))
+    
     for (idx_subtype in 1:length(subtype_by)) {
       subtype <- subtype_by[[idx_subtype]]
       color_hex <- master$chromatose[[
@@ -337,10 +371,47 @@ RenameGenesSeurat <- function(
 }
 
 
+################ RENAME CLUSTERRNA OR CLUSTERADT OR CLUSTERWNN #######
+add_cluster_metadata <- function (SeuratObj) {
+  # i.e. cluster_res_column = "RNA_snn_res.0.5"
+  if (analyses$viz_clustering == "RNA") {
+    cluster_res_column = paste0("RNA_snn_res.", RESOLUTION)
+  } else if (analyses$viz_clustering == "ADT") {
+    cluster_res_column = paste0("ADT_snn_res.", RESOLUTION)
+  } else if (analyses$viz_clustering == "WNN") {
+    cluster_res_column = paste0("wsnn_res.", RESOLUTION)
+  }
+  
+  cluster_name <- get_cluster_name()
+  
+  CellInfo <- SeuratObj@meta.data
+  
+  # Rename Clusters; i.e. WNNC01, WNNC02
+  cluster_count <- length(levels(as.factor(
+    SeuratObj[[cluster_res_column]][, 1]
+  )))
+  
+  for(j in 1 : cluster_count){
+    if (j < 10){
+      CellInfo[[cluster_name]][
+        CellInfo[[cluster_res_column]] == j - 1
+      ] <- paste0(analyses$cluster_prefix, "0", j)
+    }
+    else {
+      CellInfo[[cluster_name]][
+        CellInfo[[cluster_res_column]] == j - 1
+      ] <- paste0(analyses$cluster_prefix, j)
+    }
+  }
+  SeuratObj@meta.data <- CellInfo
+  Idents(SeuratObj) <- CellInfo[[cluster_name]]
+  
+  return (SeuratObj)
+}
 }
 
 
-##################### PROJECTILS PREPROCESSING ######################
+##################### PROJECTILS AND SINGLER ######################
 {
 ################ MOUSE TO HUMAN GENE BIOMART CONVERSION ###########
 convertMouseGeneList <- function(x){
@@ -520,7 +591,7 @@ projectils_ref_full_translation <- function (
   )
   
   # plot
-  UprojTILs <-  plot_umap(
+  UprojTILs <- plot_umap(
     ref_projectils, group_by = "functional.cluster",
     title = "projecTILs reference with filtered Seurat genes", 
     xlab = "UMAP_1", ylab = "UMAP2",
@@ -550,6 +621,154 @@ projectils_ref_full_translation <- function (
   return (ref_projectils)
 }
 
+
+projecTILs_wrapper <- function(SeuratObj, ref_projectils, gating = TRUE) {
+  
+  # TIME TO ACTUALLY ASTRAL PROJECT
+  # project per sample. Don't project on integrated samples
+  DefaultAssay(SeuratObj) <- analyses$projecTILs_assay
+  manual_colors <- get_colors(ref_projectils, color_by = "functional.cluster")
+  projectils_metadata <- data.frame()
+  for (sample_name in unique(SeuratObj$Sample)) {
+    print(sample_name)
+    # subset based on sample and assignment
+    query.data <- subset(
+      SeuratObj, Sample == sample_name
+    )
+    
+    # proJECT
+    query.projected <- make.projection(
+      query.data, 
+      ref = ref_projectils,
+      filter.cells = gating
+    )
+    query.projected <- cellstate.predict(
+      ref <- ref_projectils, query = query.projected
+    )
+    
+    # save metadata to add back to SeuratObj later
+    sample_metadata <- as.data.frame(
+      query.projected[[c('functional.cluster', 'functional.cluster.conf')]]
+    )
+    projectils_metadata <- rbind(projectils_metadata, sample_metadata)
+    
+  }
+  
+  # add functional.cluster and functional.cluster.conf info
+  SeuratObj <- AddMetaData(
+    SeuratObj,
+    metadata = projectils_metadata,
+    col.name = c("projecTILs", "projecTILs_conf")
+  )
+  
+  if (
+    ! is.na(analyses$which_assignment) &
+    analyses$which_assignment %in% colnames(SeuratObj@meta.data)
+  ) {
+    SeuratObj$Assignment <- SeuratObj[[analyses$which_assignment]]
+  }
+  return (SeuratObj)
+}
+
+SingleR_wrapper <- function(SeuratObj, ref_singler) {
+  singler_predictions <-SingleR(
+    test = SeuratObj[[analyses$SingleR_assay]]@data,
+    ref = ref_singler,
+    labels = ref_singler$label.main
+  )
+  
+  # add metadata back to Seurat
+  SeuratObj$SingleR <- singler_predictions[["pruned.labels"]]
+  
+  # cell type frequency table
+  write.csv(
+    table(SeuratObj$SingleR),
+    paste0(
+      singleRDirectory,
+      analyses$SingleR_assay, "assay SingleR",
+      " cell type distribution.csv"
+    ),
+    row.names = FALSE
+  )
+  
+  # plot total distribution
+  P2 <- plot_bargraph (
+    seurat_object = SeuratObj, aesX = "Sample", fill = "SingleR",
+    y_label = "Composition (percentage of cells)", x_label = NULL,
+    title = "SingleR T cell assignment, pruned labels",
+    y_lower_limit = 0, y_break = 1000, position = "fill"
+  )
+  
+  pdf(paste0(
+    singleRDirectory,
+    "ALL_SAMPLES ", analyses$SingleR_assay, "assay SingleR",
+    " percentage of cells per sample and Assignment barplot.pdf"
+  ), width = 6, height = 5.5, family = FONT_FAMILY
+  )
+  print(P2)
+  dev.off()
+  
+  # QC pruning
+  P3 <- plotDeltaDistribution(singler_predictions)
+  pdf(paste0(
+    singleRDirectory,
+    "ALL_SAMPLES ", analyses$SingleR_assay, "assay SingleR",
+    " pruning distribution.pdf"
+  ), width = 6, height = 5.5, family = FONT_FAMILY
+  )
+  print(P3)
+  dev.off()
+  
+  # QC heatmap
+  P4 <- plotScoreHeatmap(singler_predictions)
+  pdf(paste0(
+    singleRDirectory,
+    "ALL_SAMPLES ", analyses$SingleR_assay, "assay SingleR",
+    " score heatmap.pdf"
+  ), width = 6, height = 5.5, family = FONT_FAMILY
+  )
+  print(P4)
+  dev.off()
+  
+  
+  if (
+    ! is.na(analyses$which_assignment) &
+    analyses$which_assignment %in% colnames(SeuratObj@meta.data)
+  ) {
+    SeuratObj$Assignment <- SeuratObj[[analyses$which_assignment]]
+  }
+  return (SeuratObj)
+}
+
+################# READ PROJECTILS REFERENCE ##################
+load_ref_projectils <- function(SeuratObj = NULL) {
+  # load murine TIL reference
+  ref_projectils_filename <- paste0(
+    dataDirectory, "projecTILs/", analyses$projecTILs_ref,
+    "_processed_mouse2human_reference.rds"
+  )
+  print(paste0(
+    "trying to read projecTILs reference: ",
+    ref_projectils_filename
+  ))
+  # ideally, it has already been pre-processed from murine to human
+  if (file.exists(ref_projectils_filename)) {
+    ref_projectils <- readRDS(ref_projectils_filename)
+  } else {
+    print("projecTILs reference has not been processed, processing now")
+    # we will preprocess from murine to human
+    # also includes recomp of umap / pca according to projecTILs spec
+    # first read in the original reference
+    ref_projectils <- readRDS(paste0(
+      dataDirectory, "projecTILs/", analyses$projecTILs_ref,
+      "_mouse_atlas.rds"
+    ))
+    ref_projectils <- projectils_ref_full_translation (
+      ref_projectils, SeuratObj
+    )
+  }
+  return (ref_projectils)
+}
 
 }
 
@@ -667,7 +886,7 @@ plot_umap <- function(
   color_scheme = "nourpal",
   color_reverse = FALSE,
   title_font_size = 20, x_font_size = 20, y_font_size = 20, 
-  pt_size = NULL, split_by = NULL, ncol_dimplot = 1, ncol_guide = 1,
+  pt_size = 0.6, split_by = NULL, ncol_dimplot = 1, ncol_guide = 1,
   label_clusters = FALSE, repel_labels = FALSE, label_size = 4
 ) {
   color_by <- group_by
@@ -719,6 +938,7 @@ plot_dotgraph <- function (
   assay = "RNA", features_sorted = FALSE
 ) {
   DefaultAssay(seurat_object) <- assay
+  Idents(seurat_object) <- group_by
   if (features_sorted == FALSE) {
     features <- case_sensitive_features(
       seurat_object, features, assay = assay
@@ -764,7 +984,7 @@ plot_featureplot <- function(
   legend_title_position = "top", legend_title_size = 10,
   legend_location = "right",
   ncol = 1, nrow = 1, widths = c(0.03, 1, 1),
-  assay = "RNA"
+  assay = "RNA", min_cutoff = NA
 ) {
   DefaultAssay(seurat_object) <- assay
   
@@ -784,7 +1004,8 @@ plot_featureplot <- function(
   F1 <- FeaturePlot(
     seurat_object, features = feature_gene, split.by = split_by,
     order = order, cols = cols, pt.size = pt_size, reduction = reduction,
-    label = label, repel = repel, label.size = label_size
+    label = label, repel = repel, label.size = label_size,
+    min.cutoff = min_cutoff
   )
   
   legend <- get_legend(
@@ -1042,6 +1263,7 @@ theme_min2 <- function(base_size = 11, base_family = "") {
 ###################### GEX PREPROCESSING FUNCTIONS ###################
 # created here, so as to avoid code duplication
 {
+
 ############ GEX FIRST SCT ############
 GEX_first_SCT <- function(SeuratObjMYSC) {
   DefaultAssay(SeuratObjMYSC) <- "RNA"
@@ -1154,6 +1376,26 @@ GEX_QC <- function(SeuratObjMYSC, file) {
 }
   
 
+
+############ AGGREGATION TIDYING ##############
+tidy_metadata <- function(SeuratObj, remove_cols = NA, replacements = NA) {
+  for (col_name in remove_cols) {
+    if (col_name %in% colnames(SeuratObj@meta.data)) {
+      SeuratObj@meta.data[col_name] <- NULL
+    }
+  }
+  
+  for (original in names(replacements)) {
+    if (original %in% colnames(SeuratObj@meta.data)) {
+      replacement <- replacements[[original]]
+      SeuratObj@meta.data[replacement] <- 
+        SeuratObj@meta.data[original]
+      SeuratObj@meta.data[original] <- NULL
+    }
+  }
+  
+  return (SeuratObj)
+}
 ############ NORMALIZATION ##############
 GEX_normalization <- function(SeuratObj){
   
@@ -1193,12 +1435,56 @@ GEX_normalization <- function(SeuratObj){
 }
 
 ############ PCA ##############
-GEX_pca <- function(SeuratObjMYSC, file) {
+GEX_pca <- function(SeuratObjMYSC, file, specific_PCA_features = F) {
   DefaultAssay(SeuratObjMYSC) <- "RNA"
+  
+  PCA_features <- VariableFeatures(object = SeuratObjMYSC)[
+    1:config$pca_variable_features
+    ]
+  if (specific_PCA_features & config$pca_features != "variable") {
+    stopifnot (config$pca_features == "M" | config$pca_features == "T")
+    
+    # features include VariableFeatures of :
+    # 1. SeuratObj
+    # 2. Yun lab curated T (or M) cell markers
+    # 3. projecTILs reference
+
+    PCA_features <- union(
+      VariableFeatures(object = SeuratObjMYSC)[1:config$pca_variable_features],
+      unlist(case_sensitive_features(
+        SeuratObjMYSC,
+        unlist(flatten(
+          master[[paste0(config$pca_features, "_lineage_markers")]]
+        ))
+        ))
+    )
+    
+    # PCA_features <- unlist(case_sensitive_features(
+    #   SeuratObjMYSC,
+    #   unlist(flatten(
+    #     master[[paste0(config$pca_features, "_lineage_markers")]]
+    #   ))
+    # ))
+    
+    # add projectils features
+    if (config$pca_features == "T") {
+      if (! exists("ref_projectils")) {
+        ref_projectils <- load_ref_projectils()
+      }
+      
+      PCA_features <- union(
+        PCA_features,
+        VariableFeatures(ref_projectils)
+      )
+    }
+    
+  }
+  
   SeuratObjMYSC <- RunPCA(
     SeuratObjMYSC,
-    features = VariableFeatures(object = SeuratObjMYSC)
+    features = PCA_features
   )
+  
   # most representative (by absolute value) genes for PCs
   VS = VizDimLoadings(SeuratObjMYSC, dims = 1:2, reduction = "pca")
   VSD = DimPlot(SeuratObjMYSC, reduction = "pca") + theme_min()
@@ -1345,7 +1631,7 @@ ADT_integrate <- function(SeuratObj) {
   SeuratObj[["ADT"]] <- SeuratObj_ADT[["ADT"]]
   SeuratObj[["pcaADT"]] <- SeuratObj_ADT[["pcaADT"]]
   
-  E2 <- ElbowPlot(SeuratObj, ndims = 15, reduction = "pcaADT")
+  E2 <- ElbowPlot(SeuratObj, ndims = 50, reduction = "pcaADT")
   pdf(paste0(
     ElbowDirectory, ObjName, Subset, 
     " elbow plot after CC scaling integration and pca (ADT).pdf"
@@ -1401,6 +1687,20 @@ WNN_louvain <- function(
 }
 ###################### VIZ FUNCTIONS ###################
 {
+################ GET CLUSTER NAME ###############
+  get_cluster_name <- function() {
+    # i.e. cluster_name = "ClusterRNA"
+    if (analyses$viz_clustering == "RNA") {
+      cluster_name = "ClusterRNA"
+    } else if (analyses$viz_clustering == "ADT") {
+      cluster_name = "ClusterADT"
+    } else if (analyses$viz_clustering == "WNN") {
+      cluster_name = "ClusterWNN"
+    } else {
+      stop("invalid cluster_name")
+    }
+    return (cluster_name)
+  }
 ################ FIND CLUSTER BIOMARKERS (GEX + ADT) ################
 cluster_markers <- function(
   SeuratObj, assay = "RNA", default_ident = "ClusterRNA"
@@ -1446,26 +1746,36 @@ add_atlas_TMB <- function(SeuratObj) {
 
 atlas_QC <- function() {
   # make sure we are indeed doing QC on a predefined atlas
-  stopifnot(config$preprocess_existing_RDS)
+  stopifnot(config$preprocess_existing_atlas)
   
   # to contain preprocessed samples
   SeuratSamples <- list()
   # load atlas
   seurat_object <- readRDS(paste0(
-    RobjDir, config$existing_RDS_name
+    RobjDir, config$existing_atlas_name
   ))
-  # split by sample
-  seurat_list <- SplitObject(seurat_object, split.by = "Sample")
+  # want to plot atlas Patient, not Sample
+  # so switch them out. Also, orig.ident can be changed to Patient
+  seurat_object$orig.ident <- seurat_object$Patient
+  seurat_object$Patient <- seurat_object$Sample
+  seurat_object$Sample <- seurat_object$orig.ident
+  
+  # split by patient
+  seurat_list <- SplitObject(
+    seurat_object, split.by = config$existing_atlas_split_by
+    )
   
   for (idx in 1:length(seurat_list)) {
     # get sample
     seurat_split <- seurat_list[idx][[1]]
-    sample_name <- unique(seurat_split$Sample)[1]
-    print(paste0("Sample", sample_name))
+    sample_name <- unique(
+      seurat_split@meta.data[[config$existing_atlas_split_by]]
+      )[1]
+    print(paste0(config$existing_atlas_split_by, " ", sample_name))
     # make sure there are enough cells and it's not a sample to be removed
     if (
       ncol(seurat_split) > 55 & 
-      sample_name %in% config$existing_RDS_use_cluster
+      sample_name %in% config$existing_atlas_use_cluster
     ) {
       # QC
       seurat_split <- GEX_QC(seurat_split, sample_name)
@@ -1527,12 +1837,29 @@ subset_Tcells <- function(seurat_object) {
   return (seurat_object)
 }
 #################### WRITE ATLAS NORMALIZATION COUNTS ##################
-preprocess_atlas_objects_corr <- function(RDS_filename, population) {
+preprocess_atlas_objects_corr <- function(
+    RDS_filename, population, flip_patient_sample = T
+    ) {
   seurat_all <- readRDS(file = RDS_filename)
-  seurat_all$Facility <- ifelse(
-    grepl("MDAG", seurat_all$Sample, fixed = TRUE),
-    "MDAG", "CNSTM"
+  seurat_all <- subset(
+    seurat_all, 
+    subset = Patient != "LGG-04" &
+      Patient != "LGG-03"
   )
+  
+  if (flip_patient_sample) {
+    seurat_all$orig.ident <- seurat_all$Patient
+    seurat_all$Patient <- seurat_all$Sample
+    seurat_all$Sample <- seurat_all$orig.ident
+  }
+
+
+  seurat_all$TumorType <- ifelse(
+    grepl("ndGBM", seurat_all$Sample, fixed = TRUE),
+    "ndGBM",
+    "rGBM"
+  )
+  
   write.table(
     table(seurat_all$Fragment),
     paste0(

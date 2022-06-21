@@ -3,7 +3,7 @@ source("~/Documents/victoria_liu/matching_patients/R_Code/utils.R")
 SeuratSamples <- list()
 
 ######### QC + Doublet removal ########
-if (!config$aggr_cells & !config$preprocess_existing_RDS) {
+if (!config$aggr_cells & !config$preprocess_existing_atlas) {
   
   for(i in 1:length(FILES)){
     print(FILES[i])
@@ -50,7 +50,7 @@ if (!config$aggr_cells & !config$preprocess_existing_RDS) {
     SeuratSamples[[i]] <- SeuratObjMYSC
   }
   
-} else if (config$preprocess_existing_RDS & !config$aggr_cells) {
+} else if (config$preprocess_existing_atlas & !config$aggr_cells) {
 SeuratSamples <- atlas_QC()
 }
 
@@ -83,9 +83,10 @@ if (config$aggr_cells) {
   
   # subset immune cells as indicated
   # default identity is assignment
-  Idents(SeuratObj) <- SeuratObj$Assignment
+  Idents(SeuratObj) <- SeuratObj@meta.data[[config$aggr_category_col]]
   aggr_categories <- intersect(
-    unique(SeuratObj$Assignment), config$aggr_categories
+    unique(SeuratObj@meta.data[[config$aggr_category_col]]), 
+    config$aggr_categories
     )
   SeuratObj <- subset(
     SeuratObj, 
@@ -132,7 +133,7 @@ if (! config$aggr_cells) {
   )
 }
 
-if (! config$preprocess_existing_RDS) {
+if (! config$preprocess_existing_atlas) {
 # extract current metadata
 CellInfo <- SeuratObj@meta.data
 
@@ -295,20 +296,37 @@ dev.off()
 SeuratObj <- GEX_normalization(SeuratObj)
 ########### CELL CYCLE REGRESSION (GEX) #############
 SeuratObj <- GEX_cc_regression(SeuratObj)
- 
-########### PCA & HARMONY BATCH CORRECTION (GEX) ##########
-DefaultAssay(SeuratObj) <- "RNA"
 
+# ################# (T CELLS ONLY) ASSIGNMENT ####################
+ # {
+{
+ #  #################  CELL POPULATION: SINGLER ###################
+ #  ref_singler <- celldex::BlueprintEncodeData()
+ # 
+ #  SeuratObj <- SingleR_wrapper(SeuratObj, ref_singler)
+ # 
+ #  ################# CELL POPULATION: PROJECTILS NO GATING ###################
+ #  ref_projectils <- load_ref_projectils()
+ # 
+ #  SeuratObj <- projecTILs_wrapper(SeuratObj, ref_projectils, gating = TRUE)
+ # 
+ # 
+ #  ##################### REMOVE NK CELLS####################
+ #  SeuratObj <- subset_Tcells(SeuratObj)
+ # 
+ #  ################# PROJECTILS NO GATING #########
+ #  SeuratObj <- projecTILs_wrapper(SeuratObj, ref_projectils, gating = FALSE)
+ # }
+}
+########### PCA & HARMONY BATCH CORRECTION (GEX) ##########
 SeuratObj <- SeuratObj %>% 
-  RunPCA(
-    features = VariableFeatures(object = SeuratObj)
-  ) %>% 
+  GEX_pca("all samples", specific_PCA_features = T) %>% 
   RunHarmony(
     group.by.vars = config$batch_norm_by,
     reduction.save = "harmonyRNA"
   )
-E1 <- ElbowPlot(SeuratObj, ndims = 15, reduction = "harmonyRNA")
 
+E1 <- ElbowPlot(SeuratObj, ndims = 50, reduction = "harmonyRNA")
 pdf(paste0(
   ElbowDirectory, ObjName, Subset, 
   " elbow plot after CC regression and harmony.pdf"
@@ -324,6 +342,12 @@ for (resolution in config$RESOLUTIONS) {
     SeuratObj, resolution = resolution, reduction = "harmonyRNA"
   )
 }
+# make sure there are no factors
+SeuratObj@meta.data[, ] <- lapply(
+  SeuratObj@meta.data, 
+  function(x) type.convert(as.character(x), as.is = TRUE)
+  )
+
 # no default resolution!
 SeuratObj$seurat_clusters <- NULL
 
@@ -337,6 +361,18 @@ SeuratObj <- RunUMAP(
   reduction.key = "umapRNA_"
 )
 
+
+############### VALIDATION VISUALIZATION ##############
+U1 <- plot_umap(
+  seurat_object = SeuratObj, 
+  group_by = "RNA_snn_res.0.3",
+  reduction = paste0("umapRNA"),
+  title = "Clusters", xlab = "UMAP1", ylab = "UMAP2",
+  legend_position = "bottom",
+  ncol_guide = 5,
+  color_reverse = TRUE, label_clusters = TRUE
+)
+U1
 
 
 ############## SAVE SEURAT AND SESSION INFO, LOOSE ENDS ################
@@ -362,5 +398,6 @@ file.copy(
   from = here("analysis.json"), 
   to = paste0(ConfigDirectory, ObjName, "_", Subset, "_analysis_params_RNA.json")
 )
+
 
 

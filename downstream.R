@@ -6,201 +6,29 @@ source("~/Documents/victoria_liu/matching_patients/R_Code/utils.R")
 
 
 #
-#################### CORRELATION BETWEEN CELL TYPES ###################
-
-# some variables
-population <- substr(Subset, 2, str_length(Subset))
-assignment_type <- "Cluster"
-T_correlation_with <- c("myeloid", "glioma")
-normalizations <- c("fragment_all", "fragment_subtype", "none")
-
-
-seurat_atlas_all <- preprocess_atlas_objects_corr(
-  paste0(RobjDir, "GBMAtlas/", "Allhuman-11-3-21.rds"),
-  "fragment"
-)
-normalization_counts_fragment <- read_normalization_counts(
-  "fragment_normalization_counts.csv"
-)
-
-seurat_glioma_all <- preprocess_atlas_objects_corr(
-  paste0(RobjDir, "GBMAtlas/", "GliomaClusters-11-3-21 patients renamed.rds"),
-  "fragment_glioma"
-)
-normalization_counts_glioma <- read_normalization_counts(
-  "fragment_glioma_normalization_counts.csv"
-)
-
-seurat_myeloid_all <- preprocess_atlas_objects_corr(
-  paste0(RobjDir, "GBMAtlas/", "MyeloidClusters-11-4-21-patients renamed.rds"),
-  "fragment_myeloid"
-)
-normalization_counts_myeloid <- read_normalization_counts(
-  "fragment_myeloid_normalization_counts.csv"
-)
-
-# T cell subset
-RDS_T_filename <- paste0(
-  RobjDir, "T", population, "/", 
-  "GEXT", population, "_resAll.rds"
-)
-
-seurat_T <- preprocess_atlas_objects_corr(
-  RDS_T_filename,
-  "fragment_T"
-  )
-seurat_T$Cluster <- seurat_T$Assignment
-normalization_counts_T <- read_normalization_counts(
-  "fragment_T_normalization_counts.csv"
-)
-
-# do myeloid or glioma, one at a time
-for (correlation_with in T_correlation_with) {
-  
-  # create directories for outputs
-  SubtypeDirectory <- paste0(SubtypeCorrDirectory, correlation_with, "/")
-  if (! dir.exists(SubtypeDirectory)) {dir.create(SubtypeDirectory)}
-  
-  
-  # hard code which correlation type it is (I mean, there's only two, sooo)
-  if (correlation_with == "myeloid") {
-    seurat_correlation_with <- seurat_myeloid_all
-  } else if (correlation_with == "glioma") {
-    seurat_correlation_with <- seurat_glioma_all
-  } else {
-    stop("invalid correlation Seurat object")
-  }
-   
-  # figure out patient subset
-  seurat_correlation_with_subset <- subset(
-    seurat_correlation_with,
-    subset = ID == population |
-      Facility == population
-  )
-  
-  # merge objects
-  seurat_sample <- merge(
-    x = seurat_correlation_with_subset, y = seurat_T, 
-    add.cell.ids = c(correlation_with, "T")
-  )
-  my_data <- table(
-    seurat_sample$Fragment,
-    seurat_sample$Cluster
-  )
-  
-  # take away fragments that don't contain both T and myeloid cells
-  rows <- intersect(
-    unique(seurat_T$Fragment), unique(seurat_correlation_with_subset$Fragment)
-  )
-  my_data <- my_data[rownames(my_data) %in% rows, ]
-  
-  # create custom column order
-  col_order <- c(
-    sort(unique(seurat_correlation_with_subset@meta.data[[assignment_type]])), 
-    sort(unique(seurat_T@meta.data[[assignment_type]]))
-  )
-  # CD4 naive cells have too few counts
-  col_order <- col_order[!is.na(col_order) & col_order != "CD4_NaiveLike"]
-  my_data <- my_data[, col_order]
-  
-  for (normalization in normalizations) {
-    # normalize
-    my_data_normalized <- my_data
-    for (subtype in colnames(my_data_normalized)) {
-      for (fragment in rownames(my_data_normalized)) {
-        if (normalization == "none") {
-          normalize_denominator <- 1
-        } else if (normalization == "fragment_all") {
-          normalize_denominator <- normalization_counts_fragment[[
-            fragment
-          ]]
-        } else if (normalization == "fragment_subtype") {
-          if (grepl("MC", subtype, fixed = TRUE)) {
-            normalize_denominator <- normalization_counts_myeloid[[
-              fragment
-            ]]
-          } else if (grepl("GC", subtype, fixed = TRUE)) {
-            normalize_denominator <- normalization_counts_glioma[[
-              fragment
-            ]]
-          } else if (subtype %in% unique(seurat_T$Assignment)) {
-            normalize_denominator <- normalization_counts_T[[
-              fragment
-            ]]
-          } else {
-            print(subtype)
-            print(fragment)
-            stop("normalization denominator could not be found")
-          }
-        }
-        stopifnot(! is.null(normalize_denominator))
-          
-        my_data_normalized[fragment, subtype] <- 
-          my_data_normalized[fragment, subtype] / normalize_denominator
-      }
-    }
-    
-    pdf(paste0(
-      SubtypeDirectory, ObjName, Subset,
-      "__Sample ", population,
-      "__Normalization ", normalization,
-      "__Subtype Correlation plot.pdf"
-    ), width = 40, height = 40, family = FONT_FAMILY
-    )
-    chart.Correlation(my_data_normalized, histogram = TRUE, method = "pearson")
-    mtext(paste0(
-      "Sample: ", population,
-      " __ Normalization: ", normalization,
-      " __ Subtype Correlation plot"
-    ), side = 3, line = 3, cex = 2)
-    dev.off()
-    
-    
-    pdf(paste0(
-      SubtypeDirectory, ObjName, Subset, 
-      "__Sample ", population,
-      "__Normalization ", normalization,
-      "__Subtype Correlation heatmap.pdf"
-    ), width = 15, height = 15, family = FONT_FAMILY
-    )
-    res <- cor(my_data_normalized)
-    corrplot(
-      res, type = "upper", order = "original", 
-      tl.col = "black", tl.srt = 45,
-      number.font = 1,
-      mar = c(0, 0, 10, 0),
-      title = paste0(
-        "Sample: ", population,
-        " __ Normalization: ", normalization,
-        " __ Subtype Correlation heatmap"
-      )
-    )
-    dev.off()
-  }
-}
-
-
 #################### PAN CANCER T CELLS #####################
 # # get GEO files
-# get_GEO_unqip()
+# get_GEO_unzip()
 
 # get external counts and metadata
 counts_files <- list.files(GEOdir, pattern = "counts")
 meta_files <- list.files(GEOdir, pattern = "metadata")
-meta_file= meta_files[1]
+meta_file = meta_files[1]
 
 # create seurat objects of external samples
 cancer_names <- c()
 cancer_objects <- list()
 for (i in 1: length(counts_files)){
   count_file = counts_files[i]
+
   cancer_subtype <- paste0(
     strsplit(count_file, "_")[[1]][2], "_",
     strsplit(strsplit(count_file, "CD")[[1]][2], ".counts")[[1]][1]
   )
+  
   if (cancer_subtype %in% config$FILES) {
     print(cancer_subtype)
-    
+
     seurat_data <- read.csv(
       paste0(GEOdir, count_file), sep = "\t", row.names = 1
       )
@@ -208,12 +36,12 @@ for (i in 1: length(counts_files)){
       paste0(GEOdir, meta_file), sep = "\t", row.names = 1
       )
     seurat_obj <- CreateSeuratObject(
-      counts = seurat_data, 
-      min.features = 100, 
+      counts = seurat_data,
+      min.features = 100,
       project = cancer_subtype,
       meta.data = meta_data
       )
-    assign(cancer_subtype, seurat_obj)
+    # assign(cancer_subtype, seurat_obj)
     cancer_names[length(cancer_names) + 1] <- cancer_subtype
     cancer_objects[[length(cancer_objects) + 1]] <- seurat_obj
   }
@@ -268,8 +96,8 @@ external_pan <- external_pan %>%
   )
 
 refObj <- readRDS(paste0(
-  RobjDir, "GBMAtlas/", 
-  "TcellClusters-7-22-21-goodwithoutcluster6 new patient names.rds"
+  RobjDir, "TAtlas/", 
+  "GEXTAtlas_res0.3.rds"
   ))
 
 pan_T <- merge(x = external_pan, y = refObj)
@@ -564,3 +392,191 @@ FeaturePlot(merged_seurat2,features = "CLEC9A",reduction = "umap")
 
 
 
+
+
+#################### AGGR CELLS VARIOUS CLUSTIFYR REFS #################
+{
+  ################# ASSIGNMENT BARPLOTS ###################
+P5 <- plot_bargraph (
+  seurat_object = SeuratObj, aesX = "Sample", fill = "Assignment",
+  y_label = "Composition (Number of cells)", x_label = NULL,
+  y_lower_limit = 0, y_break = 1000, 
+  title = paste0(analyses$which_assignment, " Assignment")
+)
+
+pdf(paste0(
+  densityplotDirectory, ObjName, Subset, 
+  "res", RESOLUTION,
+  "_number of cells per sample and Assignment (", 
+  analyses$which_assignment,
+  ") barplot cbmc reference.pdf"
+), width = 6, height = 5.5, family = FONT_FAMILY
+)
+print(P5)
+dev.off()
+
+
+
+P6 <- plot_bargraph (
+  seurat_object = SeuratObj, aesX = "Assignment", fill = "Sample",
+  y_label = "Composition (percentage of cells)", x_label = NULL, 
+  y_lower_limit = 0, y_break = 0.2,
+  position = "fill",
+  plot_margin = unit(c(0.2, 0.5, 0.2, 0.5), "cm"),
+  title = paste0(analyses$which_assignment, " Assignment")
+)
+pdf(paste0(
+  densityplotDirectory, ObjName, Subset, 
+  "res", RESOLUTION, 
+  "percent of cells per sample and Assignment (", 
+  analyses$which_assignment,
+  ") barplot cbmc reference.pdf"
+), width = 6, height = 5.5, family = FONT_FAMILY
+)
+print(P6)
+dev.off()
+
+
+P7 <- plot_bargraph (
+  seurat_object = SeuratObj, aesX = "Assignment", fill = "Sample",
+  y_label = "Composition (Number of cells)", x_label = NULL, 
+  y_lower_limit = 0, y_break = 1000,
+  title = paste0(analyses$which_assignment, " Assignment")
+)
+
+pdf(paste0(
+  densityplotDirectory, ObjName, Subset,
+  "res", RESOLUTION, 
+  "_percentage of cells per major population and Sample (", 
+  analyses$which_assignment,
+  ") barplot cbmc reference.pdf"
+), width = 8, height = 6, family = FONT_FAMILY
+)
+print(P7)
+dev.off()
+
+P8 <- plot_bargraph (
+  seurat_object = SeuratObj, aesX = "Sample", fill = "Assignment",
+  y_label = "Composition (percentage of cells)", x_label = NULL,
+  y_lower_limit = 0, y_break = 1000, position = "fill",
+  title = paste0(analyses$which_assignment, " Assignment")
+)
+
+pdf(paste0(
+  densityplotDirectory, ObjName, Subset, 
+  "res", RESOLUTION,
+  "_percentage of cells per sample and Assignment (", 
+  analyses$which_assignment,
+  ") barplot cbmc reference.pdf"
+), width = 6, height = 5.5, family = FONT_FAMILY
+)
+print(P8)
+dev.off()
+
+
+
+
+# multiple
+bar_plots <- ggarrange(P2, P5, P8, P3, P4, P6, P7, ncol = 2)
+pdf(paste0(
+  densityplotDirectory, ObjName, Subset, 
+  "res", RESOLUTION, "_all barplots (Assignment ", 
+  analyses$which_assignment,
+  ") cbmc reference.pdf"
+), width = 18, height = 22, family = FONT_FAMILY
+)
+print(bar_plots)
+dev.off()
+
+
+################# ASSIGNMENT DIMPLOTS ###################
+U4 <- plot_umap(
+  seurat_object = SeuratObj, group_by = "Assignment",
+  reduction = paste0("umap", analyses$viz_clustering),
+  title = paste0(analyses$which_assignment, " Assignment"), 
+  xlab = "UMAP1", ylab = "UMAP2",
+  legend_position = "bottom",
+  ncol_guide = 4,
+  label_clusters = TRUE, 
+  label_size = 5,
+  color_reverse = FALSE
+)
+
+pdf(paste0(
+  UMAPDirectory, ObjName, Subset, 
+  "_res", RESOLUTION, 
+  "_", analyses$viz_clustering,
+  "Clusters_Assignment (", 
+  analyses$which_assignment,
+  ") UMAP cbmc reference.pdf"
+), width = 8, height = 6, family = FONT_FAMILY
+)
+print(U4)
+dev.off()
+
+U5 <- plot_umap(
+  seurat_object = SeuratObj, group_by = "Assignment",
+  reduction = paste0("umap", analyses$viz_clustering),
+  title = paste0(analyses$which_assignment, " Assignment"),
+  xlab = "UMAP1", ylab = "UMAP2",
+  legend_position = "bottom",
+  title_font_size = 16, x_font_size = 16, y_font_size = 16, 
+  pt_size = 0.2, split_by = "Sample", ncol_dimplot = 2
+)
+
+pdf(paste0(
+  UMAPDirectory, ObjName, Subset, 
+  "_res", RESOLUTION, 
+  "_", analyses$viz_clustering,
+  "Clusters_Assignment (", 
+  analyses$which_assignment,
+  ") UMAP Iteration by sample cbmc reference.pdf"
+), width = 12, height = 2.5 * length(unique(SeuratObj$Sample)), 
+family = FONT_FAMILY
+)
+print(U5)
+dev.off()
+
+
+U6 <- plot_umap(
+  seurat_object = SeuratObj, 
+  group_by = "Assignment",
+  reduction = paste0("umap", analyses$viz_clustering),
+  title = paste0(analyses$which_assignment, " Assignment"),
+  xlab = "UMAP1", ylab = "UMAP2",
+  legend_position = "bottom",
+  title_font_size = 16, x_font_size = 16, y_font_size = 16, 
+  pt_size = 0.5, split_by = "Assignment", ncol_dimplot = 2
+)
+
+pdf(paste0(
+  UMAPDirectory, ObjName, Subset, 
+  "_res", RESOLUTION, 
+  "_", analyses$viz_clustering,
+  "Clusters_Assignment (", 
+  analyses$which_assignment,
+  ") UMAP Iteration by assignment cbmc reference.pdf"
+), width = 12, height = 2.5 * length(unique(SeuratObj$Sample)), family = FONT_FAMILY
+)
+print(U6)
+dev.off()
+
+
+
+
+# multiple
+plots2 <- ggarrange(U1, U4, U2, ncol = 3)
+
+pdf(paste0(
+  UMAPDirectory, ObjName, Subset, 
+  "_res", RESOLUTION, "(Assignment ", 
+  analyses$which_assignment,
+  ") all UMAPs cbmc reference.pdf"
+), width = 20, height = 7, family = FONT_FAMILY
+)
+print(plots2)
+dev.off()
+
+
+
+}

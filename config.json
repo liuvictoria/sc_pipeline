@@ -1,13 +1,19 @@
 {
-    "FILES": [],
+    "FILES": [
+      "ESC8", "ESC9", "MYSC70", "MYSC71", "MYSC95", "MYSC96", "MYSC97", "MYSC98"
+    ],
     "count_matrices_dir": "sample_feature_bc_matrix",
     "ObjName": "GEX",
-    "Subset": "TCNSTM",
+    "Subset": "AllImmune",
+    "pca_features": "variable",
+    "pca_variable_features": 2000,
     "USE_ADT": false,
     "SCT": true,
+
     "batch_norm_by": "Sample",
     "RESOLUTIONS": [
         0.3,
+        0.35,
         0.5,
         0.7,
         0.8,
@@ -17,18 +23,19 @@
         1.4
     ],
     "RESOLUTION": 0.3,
-    "aggr_cells": false,
+    "aggr_cells": true,
     "aggr_FILES": [
-        "PatientPBMC",
-        "PatientTumor"
+      "AllPBMC",
+      "AllTumor"
     ],
     "aggr_resolutions": [
-        0.5,
-        0.5
+      0.3, 0.3
     ],
+    "aggr_category_col": "Assignment",
     "aggr_categories": [
-        "Myeloid",
-        "TCells",
+        "GAM",
+        "GIT",
+        "GIB",
         "CD4 T",
         "CD8 T",
         "CD14+ Mono",
@@ -39,20 +46,21 @@
         "CD34+",
         "pDCs"
     ],
-    "preprocess_existing_RDS": false,
-    "existing_RDS_name": "GBMAtlas/TCellClusters-11-3-21 patients renamed.rds",
-    "existing_RDS_use_cluster": [
-      "MDAG-03", "MDAG-04", "MDAG-06", "MDAG-07",
-      "MDAG-09", "MDAG-10", "MDAG-11", "MDAG-12",
-      "CNSTM-068", "CNSTM-070", "CNSTM-081", "CNSTM-096", "CNSTM-375",
-      "CNSTM-379", "CNSTM-390", "CNSTM-394", "CNSTM-397"
+    "preprocess_existing_atlas": false,
+    "existing_atlas_name": "GBMAtlas/TCellClusters-11-3-21 patients renamed.rds",
+    "existing_atlas_split_by": "Sample",
+    "existing_atlas_use_cluster": [
+      "rGBM-01", "ndGBM-01", "ndGBM-11", "ndGBM-02", "rGBM-02", "rGBM-03",
+      "rGBM-04", "ndGBM-03", "rGBM-05", "ndGBM-04",
+      "ndGBM-05", "ndGBM-06", "ndGBM-07", "ndGBM-08", "ndGBM-09"
     ],
+
     "nFeature_RNA": 200,
     "ribo_ratio": 0.4,
     "mito_ratio": 0.15,
     "nFeature_ADT": 40,
     "run_Harmony_CC_controls": false,
-    "FONT_FAMILY": "ArialMT",
+    "FONT_FAMILY": "Helvetica",
     "Directory": "~/Documents/victoria_liu/matching_patients",
     "NourpalDirectory": "~/Documents/victoria_liu/Nourpal"
 }
