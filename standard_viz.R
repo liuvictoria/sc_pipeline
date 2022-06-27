@@ -261,16 +261,15 @@ dev.off()
 
 ################# (CUSTOM) CELL POPULATION: CLUSTIFYR ###################
 # determine which reference matrix / gene list to use
-REF_MATRIX <- cbmc_ref
+# REF_MATRIX <- cbmc_ref
 
-# refSeuratObj <- readRDS(
-#   paste0(
-#     RobjDir,
-#     "GBMAtlas/",
-#     "Allhuman-11-3-21.rds"
-#   )
-# )
-
+refSeuratObj <- readRDS(
+  paste0(
+    RobjDir,
+    "GBMAtlas/",
+    "Allhuman-11-3-21.rds"
+  )
+)
 
 # refSeuratObj_subsampled <- refSeuratObj[
 #   , sample(colnames(refSeuratObj), size = 9000, replace = F)
@@ -278,24 +277,13 @@ REF_MATRIX <- cbmc_ref
 #
 # saveRDS(
 #   refSeuratObj_subsampled,
-#   file = paste0(
-#     RobjDir,
-#     "GBMAtlas/",
-#     "Allhuman-11-3-21_subsampled_9000.rds"
-#   )
+  # file = paste0(
+  #   RobjDir,
+  #   "GBMAtlas/",
+  #   "Allhuman-11-3-21_subsampled_9000.rds"
+  # )
 # )
-#
-# SeuratObj_subsampled <- SeuratObj[
-#   , sample(colnames(SeuratObj), size = 1000, replace = F)
-# ]
-#
-# saveRDS(
-#   SeuratObj_subsampled,
-#   file = paste0(
-#     RobjDirectory, ObjName, Subset,
-#     "_res", RESOLUTION, "_subsampled_1000.rds"
-#   )
-# )
+
 
 # gam_git_gib <- list(
 #   Myeloid = "GAM",
@@ -322,11 +310,11 @@ REF_MATRIX <- cbmc_ref
 # )
 
 
-# # if column with assignment has space in it
-# REF_MATRIX <- seurat_ref(
-#   seurat_object = refSeuratObj,
-#   cluster_col = "Assignment"
-# )
+# if column with assignment has space in it
+REF_MATRIX <- seurat_ref(
+  seurat_object = refSeuratObj,
+  cluster_col = "Assignment"
+)
 
 
 # clustify using

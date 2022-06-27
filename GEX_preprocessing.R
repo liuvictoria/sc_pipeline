@@ -134,56 +134,26 @@ if (! config$aggr_cells) {
 }
 
 if (! config$preprocess_existing_atlas) {
-# extract current metadata
-CellInfo <- SeuratObj@meta.data
-
-# add sample information
-sample_info <- master$sample_info
-
-CellInfo$Sample <- NA
-for (i in 1:length(sample_info)) {
-  CellInfo$Sample[
-    which(str_detect(CellInfo$orig.ident, names(sample_info[i])))
-  ] <- sample_info[[i]]
-}
-
-Sample <- CellInfo$Sample
-names(Sample) <- colnames(x = SeuratObj)
-SeuratObj <- AddMetaData(
-  object = SeuratObj, metadata = Sample, col.name = "Sample"
-)
-
-# add patient information (anonymized, deidentified)
-patient_info <- master$patient_info
-
-CellInfo$Patient <- NA
-for (i in 1:length(patient_info)) {
-  CellInfo$Patient[
-    which(str_detect(CellInfo$orig.ident, names(patient_info[i])))
-  ] <- patient_info[[i]]
-}
-
-Patient <- CellInfo$Patient
-names(Patient) <- colnames(x = SeuratObj)
-SeuratObj <- AddMetaData(
-  object = SeuratObj, metadata = Patient, col.name = "Patient"
-)
-
-#add group information
-group_info <- master$group_info
-
-CellInfo$Group <- NA
-for (i in 1:length(group_info)) {
-  CellInfo$Group[
-    which(str_detect(CellInfo$orig.ident, names(group_info[i])))
-  ] <- group_info[[i]]
-}
-
-Group <- CellInfo$Group
-names(Group) <- colnames(x = SeuratObj)
-SeuratObj <- AddMetaData(
-  object = SeuratObj, metadata = Group, col.name = "Group"
-)
+  SeuratObj <- add_master_medatadata(SeuratObj, master$sample_info, "Sample")
+  SeuratObj <- add_master_medatadata(SeuratObj, master$patient_info, "Patient")
+  SeuratObj <- add_master_medatadata(SeuratObj, master$group_info, "Group")
+  SeuratObj <- add_master_medatadata(SeuratObj, master$grade_info, "Grade")
+  SeuratObj <- add_master_medatadata(SeuratObj, master$type_info, "Type")
+  # sex is lowercase in Nour's atlas
+  SeuratObj <- add_master_medatadata(SeuratObj, master$sex_info, "sex")
+  
+  # Fragment / IDFrag
+  add_single_fragment_postfix <- function(orig_ident) {
+    return (paste0(orig_ident, "_1"))
+  }
+  Fragment <- unlist(lapply(SeuratObj$Patient, add_single_fragment_postfix))
+  SeuratObj <- AddMetaData(
+    object = SeuratObj, metadata = Fragment, col.name = "Fragment"
+  )
+  IDFrag <- unlist(lapply(SeuratObj$Sample, add_single_fragment_postfix))
+  SeuratObj <- AddMetaData(
+    object = SeuratObj, metadata = IDFrag, col.name = "IDFrag"
+  )
 }
 
 # add categories for ribosomal expression (for dimplot)

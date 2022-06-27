@@ -1,45 +1,106 @@
 {
 	"sample_info": {
-		"8" : "CONTROL1_blood",
-		"9" : "CONTROL1_blood",
-		"70": "GBM6_tumor",
-		"71": "GBM6_blood",
-		"95": "GBM30_blood",
-		"96": "GBM30_tumor",
-		"97": "GBM31_blood",
-		"98": "GBM31_tumor"
+		"ESC8" : "CONTROL-01",
+		"ESC9" : "CONTROL-01",
+		"MYSC70": "MDAG-06",
+		"MYSC71": "MDAG-06",
+		"MYSC95": "MDAG-30",
+		"MYSC96": "MDAG-30",
+		"MYSC97": "MDAG-31",
+		"MYSC98": "MDAG-31"
 	},
 	"group_info": {
-		"8" : "blood",
-		"9" : "blood",
-		"70": "tumor",
-		"71": "blood",
-		"95": "blood",
-		"96": "tumor",
-		"97": "blood",
-		"98": "tumor"
+		"ESC8" : "blood",
+		"ESC9" : "blood",
+		"MYSC70": "tumor",
+		"MYSC71": "blood",
+		"MYSC96": "tumor",
+		"MYSC97": "blood",
+		"MYSC98": "tumor"
 	},
 	"patient_info": {
-		"8" : "CONTROL1",
-		"9" : "CONTROL1",
-		"70": "GBM6",
-		"71": "GBM6",
-		"95": "GBM30",
-		"96": "GBM30",
-		"97": "GBM31",
-		"98": "GBM31"
+		"ESC8" : "CONTROL-01",
+		"ESC9" : "CONTROL-01",
+		"MYSC70": "ndGBM-05",
+		"MYSC71": "ndGBM-05",
+		"MYSC95": "rGBM-06",
+		"MYSC96": "rGBM-06",
+		"MYSC97": "rGBM-07",
+		"MYSC98": "rGBM-07"
+	},
+	"sex_info": {
+		"ESC8" : "NA",
+		"ESC9" : "NA",
+		"MYSC70": "Male",
+		"MYSC71": "Male",
+		"MYSC95": "Female",
+		"MYSC96": "Female",
+		"MYSC97": "Female",
+		"MYSC98": "Female"
+	},
+	"type_info": {
+		"ESC8" : "NA",
+		"ESC9" : "NA",
+		"MYSC70": "GBM",
+		"MYSC71": "GBM",
+		"MYSC95": "Recurrent GBM",
+		"MYSC96": "Recurrent GBM",
+		"MYSC97": "Recurrent GBM",
+		"MYSC98": "Recurrent GBM"
+	},
+	"grade_info": {
+		"ESC8" : "NA",
+		"ESC9" : "NA",
+		"MYSC70": "IV",
+		"MYSC71": "IV",
+		"MYSC95": "IV",
+		"MYSC96": "IV",
+		"MYSC97": "IV",
+		"MYSC98": "IV"
 	},
 
 	"ADT_PRESENT": {
-		"8" : false,
-		"9" : false,
-		"70": true,
-		"71": true,
-		"95": true,
-		"96": true,
-		"97": true,
-		"98": true
+		"ESC8" : false,
+		"ESC9" : false,
+		"MYSC70": true,
+		"MYSC71": true,
+		"MYSC95": true,
+		"MYSC96": true,
+		"MYSC97": true,
+		"MYSC98": true
 	},
+
+	"metadata_merger_keep" : [
+		"orig.ident",
+		"nCount_RNA",
+		"nFeature_RNA",
+		"nCount_ADT",
+		"nFeature_ADT",
+		"nCount_RNApreSCT",
+		"nFeature_RNApreSCT",
+		"log10GenesPerUMI",
+		"Cells",
+		"Library",
+		"Sample",
+		"Patient",
+		"Grade",
+		"Type",
+		"sex",
+		"Fragment",
+		"IDFrag",
+		"percent.mt",
+		"mito_ratio",
+		"ribo_ratio",
+		"miQC.keep",
+		"DoubletStatus",
+		"ribo_category",
+		"S.Score",
+		"G2M.Score",
+		"Phase",
+		"ClusterRNA",
+		"Assignment"
+	],
+
 
 	"T_lineage_markers": {
 		"Yun markers": [
@@ -85,7 +146,8 @@
 	"A_lineage_markers": {
 		"Yun markers": [
 			"IFNG", "TOX", "TOX2", "CD69", "ENTPD1", "ITGAE", "TGFB1", "IL4",
-			"TNF", "IL13", "IL17A", "IL22", "IL21", "CCR7", "CD28", "B3GAT1"
+			"TNF", "IL13", "IL17A", "IL22", "IL21", "CCR7", "CD28", "B3GAT1",
+			"SOX2", "ACTA2"
 		],
 		"All lineages": ["Ifng", "CD247", "NCAM1", "Ptprc", "Cd3e", "Cd3g"],
 		"Exhaustion": ["LAG3", "PDCD1", "TIGIT", "Ctla4",  "CD44", "TNFRSF4", "TNFRSF8", "ENTPD1"],
