@@ -102,7 +102,7 @@ library(Nourpal)
 
 
 
-################ SET PARAMETERS ###############
+################ SET + SAVE PARAMETERS ###############
 
 # resolution for cluster-finding after PCA
 RESOLUTIONS <- config$RESOLUTIONS
@@ -118,9 +118,8 @@ FILES = config$FILES
 ADT_PRESENT <- master$ADT_PRESENT
 USE_ADT <- config$USE_ADT
 if (USE_ADT) {
-  regexp <- "[[:digit:]]+"
   for (file in FILES) {
-    if (! ADT_PRESENT[[str_extract(file, regexp)]]) {
+    if (! ADT_PRESENT[[file]]) {
       stop("Trying to use ADT, but ADT is not present for all samples")
     }
   }
@@ -129,6 +128,36 @@ if (USE_ADT) {
 # saving files
 ObjName <- config$ObjName
 Subset <- config$Subset
+
+write_experimental_configs <- function(suffix = "") {
+  writeLines(
+    capture.output(sessionInfo()), 
+    paste0(ConfigDirectory, ObjName, "_", Subset, "_sessionInfo.txt")
+  )
+  
+  
+  config_params_filename <- paste0(
+    ConfigDirectory, ObjName, "_", Subset, "_config_params", suffix, ".json"
+  )
+  if (file.exists(config_params_filename)) {
+    unlink(config_params_filename)
+  }
+  file.copy(
+    from = here("config.json"), to = config_params_filename
+  )
+  
+  
+  analysis_params_filename <- paste0(
+    ConfigDirectory, ObjName, "_", Subset, "_analysis_params", suffix, ".json"
+  )
+  if (file.exists(analysis_params_filename)) {
+    unlink(analysis_params_filename)
+  }
+  file.copy(
+    from = here("analysis.json"), to = analysis_params_filename
+  )
+}
+
 ################# CONFIG DIRECTORIES #################
 # Set working directory and create input / output folders
 Directory <- config$Directory
@@ -186,13 +215,24 @@ LoupeDirectory <- paste0(OutputDirectory, "/LoupeProjections/")
 if (! dir.exists(LoupeDirectory)) dir.create(LoupeDirectory)
 
 projTILDirectory <- paste0(OutputDirectory, "/projecTILs/")
+if (RESOLUTION != "All") {
+  projTILDirectory <- str_replace(
+    projTILDirectory, paste0("Res", RESOLUTION), paste0("Res", "All")
+  )
+}
 if (! dir.exists(projTILDirectory) & RESOLUTION == "All") {
   dir.create(projTILDirectory)
 } 
 singleRDirectory <- paste0(OutputDirectory, "/singleR/")
-if (! dir.exists(singleRDirectory) & RESOLUTION == "All") {
+if (RESOLUTION != "All") {
+  singleRDirectory <- str_replace(
+    singleRDirectory, paste0("Res", RESOLUTION), paste0("Res", "All")
+    )
+}
+if (! dir.exists(singleRDirectory)) {
   dir.create(singleRDirectory)
 } 
+
 clustifyrDirectory <- paste0(OutputDirectory, "/clustifyr/")
 if (! dir.exists(clustifyrDirectory) & RESOLUTION != "All") {
   dir.create(clustifyrDirectory)
@@ -231,10 +271,11 @@ get_height <- function(category) {
 }
 
 ###### GET NOURPAL COLORS #######
+
 get_colors <- function(
   seurat_object,
   color_by,
-  subtype_by,
+  subtype_by = c("blood", "tumor"),
   color_scheme = "nourpal",
   color_reverse = FALSE
 ) {
@@ -408,10 +449,69 @@ add_cluster_metadata <- function (SeuratObj) {
   
   return (SeuratObj)
 }
+
+############ ADD MASTER METADATA ##########
+add_master_metadata <- function(SeuratObj, info, colname) {
+  CellInfo <- SeuratObj@meta.data
+  CellInfo[[colname]] <- NA
+  for (i in 1:length(info)) {
+    CellInfo[[colname]][
+      which(str_detect(CellInfo$orig.ident, names(info[i])))
+    ] <- info[[i]]
+  }
+  
+  NewData <- CellInfo[[colname]]
+  names(NewData) <- colnames(x = SeuratObj)
+  SeuratObj <- AddMetaData(
+    object = SeuratObj, metadata = NewData, col.name = colname
+  )
+}
+}
+
+add_all_master_metadata <- function(SeuratObj) {
+  # this func adds metadata as defined by master.json file
+  
+  SeuratObj <- add_master_metadata(SeuratObj, master$sample_info, "Sample")
+  SeuratObj <- add_master_metadata(SeuratObj, master$patient_info, "Patient")
+  SeuratObj <- add_master_metadata(SeuratObj, master$group_info, "Group")
+  SeuratObj <- add_master_metadata(SeuratObj, master$grade_info, "Grade")
+  SeuratObj <- add_master_metadata(SeuratObj, master$type_info, "Type")
+  SeuratObj <- add_master_metadata(SeuratObj, master$sex_info, "sex")
+  
+  # Fragment / IDFrag
+  add_single_fragment_postfix <- function(orig_ident) {
+    return (paste0(orig_ident, "_1"))
+  }
+  Fragment <- unlist(lapply(SeuratObj$Patient, add_single_fragment_postfix))
+  SeuratObj <- AddMetaData(
+    object = SeuratObj, metadata = Fragment, col.name = "Fragment"
+  )
+  IDFrag <- unlist(lapply(SeuratObj$Sample, add_single_fragment_postfix))
+  SeuratObj <- AddMetaData(
+    object = SeuratObj, metadata = IDFrag, col.name = "IDFrag"
+  )
+}
+
+add_all_master_metadata_multiple_objs <- function(resolutions, subsets) {
+  # resolutions = c("All", "0.3")
+  # subsets = 
+  for (subset in subsets) {
+    for (res in resolutions) {
+      filename <- paste0(
+        RobjDir, subset, "/",
+        "GEX", subset, "_res", res, ".rds"
+      )
+      print(filename)
+      SeuratObj <- readRDS(filename)
+      add_all_master_metadata(SeuratObj)
+      saveRDS(SeuratObj, filename)
+    }
+  }
 }
 
 
-##################### PROJECTILS AND SINGLER ######################
+
+################## PROJECTILS AND SINGLER AND CLUSTIFYR ###################
 {
 ################ MOUSE TO HUMAN GENE BIOMART CONVERSION ###########
 convertMouseGeneList <- function(x){
@@ -670,76 +770,6 @@ projecTILs_wrapper <- function(SeuratObj, ref_projectils, gating = TRUE) {
   return (SeuratObj)
 }
 
-SingleR_wrapper <- function(SeuratObj, ref_singler) {
-  singler_predictions <-SingleR(
-    test = SeuratObj[[analyses$SingleR_assay]]@data,
-    ref = ref_singler,
-    labels = ref_singler$label.main
-  )
-  
-  # add metadata back to Seurat
-  SeuratObj$SingleR <- singler_predictions[["pruned.labels"]]
-  
-  # cell type frequency table
-  write.csv(
-    table(SeuratObj$SingleR),
-    paste0(
-      singleRDirectory,
-      analyses$SingleR_assay, "assay SingleR",
-      " cell type distribution.csv"
-    ),
-    row.names = FALSE
-  )
-  
-  # plot total distribution
-  P2 <- plot_bargraph (
-    seurat_object = SeuratObj, aesX = "Sample", fill = "SingleR",
-    y_label = "Composition (percentage of cells)", x_label = NULL,
-    title = "SingleR T cell assignment, pruned labels",
-    y_lower_limit = 0, y_break = 1000, position = "fill"
-  )
-  
-  pdf(paste0(
-    singleRDirectory,
-    "ALL_SAMPLES ", analyses$SingleR_assay, "assay SingleR",
-    " percentage of cells per sample and Assignment barplot.pdf"
-  ), width = 6, height = 5.5, family = FONT_FAMILY
-  )
-  print(P2)
-  dev.off()
-  
-  # QC pruning
-  P3 <- plotDeltaDistribution(singler_predictions)
-  pdf(paste0(
-    singleRDirectory,
-    "ALL_SAMPLES ", analyses$SingleR_assay, "assay SingleR",
-    " pruning distribution.pdf"
-  ), width = 6, height = 5.5, family = FONT_FAMILY
-  )
-  print(P3)
-  dev.off()
-  
-  # QC heatmap
-  P4 <- plotScoreHeatmap(singler_predictions)
-  pdf(paste0(
-    singleRDirectory,
-    "ALL_SAMPLES ", analyses$SingleR_assay, "assay SingleR",
-    " score heatmap.pdf"
-  ), width = 6, height = 5.5, family = FONT_FAMILY
-  )
-  print(P4)
-  dev.off()
-  
-  
-  if (
-    ! is.na(analyses$which_assignment) &
-    analyses$which_assignment %in% colnames(SeuratObj@meta.data)
-  ) {
-    SeuratObj$Assignment <- SeuratObj[[analyses$which_assignment]]
-  }
-  return (SeuratObj)
-}
-
 ################# READ PROJECTILS REFERENCE ##################
 load_ref_projectils <- function(SeuratObj = NULL) {
   # load murine TIL reference
@@ -770,6 +800,150 @@ load_ref_projectils <- function(SeuratObj = NULL) {
   return (ref_projectils)
 }
 
+
+############### SINGLER WRAPPER #############
+SingleR_wrapper <- function(
+    SeuratObj, ref_singler, 
+    ref_name = "BlueprintEncode", celltype = "T cell"
+    ) {
+  singler_colname <- paste0("SingleR_", ref_name)
+  
+  singler_predictions <- SingleR(
+    test = SeuratObj[[analyses$SingleR_assay]]@data,
+    ref = ref_singler,
+    labels = ref_singler$label.main
+  )
+  
+  # add metadata back to Seurat
+  SeuratObj@meta.data[[singler_colname]] <- singler_predictions[["pruned.labels"]]
+  
+  # cell type frequency table
+  write.csv(
+    table(SeuratObj@meta.data[[singler_colname]]),
+    paste0(
+      singleRDirectory,
+      analyses$SingleR_assay, "assay SingleR",
+      " cell type distribution.csv"
+    ),
+    row.names = FALSE
+  )
+  
+  # plot total distribution
+  P2 <- plot_bargraph (
+    seurat_object = SeuratObj, aesX = "Sample", fill = singler_colname,
+    y_label = "Composition (percentage of cells)", x_label = NULL,
+    title = paste0(
+      "SingleR ", celltype, " assignment using ", ref_name, " reference"
+      ),
+    y_lower_limit = 0, y_break = 1000, position = "fill"
+  )
+  
+  pdf(paste0(
+    singleRDirectory,
+    celltype, " assignment using ", ref_name, " reference_", 
+    analyses$SingleR_assay, " assay_",
+    "percentage of cells per sample and Assignment barplot.pdf"
+  ), width = 6, height = 5.5, family = FONT_FAMILY
+  )
+  print(P2)
+  dev.off()
+  
+  # QC pruning
+  P3 <- plotDeltaDistribution(singler_predictions)
+  pdf(paste0(
+    singleRDirectory,
+    celltype, " assignment using ", ref_name, " reference_",
+    analyses$SingleR_assay, "assay_",
+    " pruning distribution.pdf"
+  ), width = 6, height = 5.5, family = FONT_FAMILY
+  )
+  print(P3)
+  dev.off()
+  
+  # QC heatmap
+  P4 <- plotScoreHeatmap(singler_predictions)
+  pdf(paste0(
+    singleRDirectory,
+    celltype, " assignment using ", ref_name, " reference_",
+    analyses$SingleR_assay, "assay_",
+    " score heatmap.pdf"
+  ), width = 6, height = 5.5, family = FONT_FAMILY
+  )
+  print(P4)
+  dev.off()
+  
+  
+  if (
+    ! is.na(analyses$which_assignment) &
+    analyses$which_assignment %in% colnames(SeuratObj@meta.data)
+  ) {
+    SeuratObj$Assignment <- SeuratObj[[analyses$which_assignment]]
+    if (! grepl("SingleR", analyses$which_assignment, fix = F)) {
+      print(paste0(" not using SingleR for cell 'Assignment' ", ref_name))
+    }
+  }
+  
+
+  return (SeuratObj)
+}
+
+################ DEFINE SINGLER REFERENCES ##################
+define_refs_singler <- function() {
+  refs_singler <<- list(
+    "BlueprintEncode" = celldex::BlueprintEncodeData(),
+    "HPCA" = celldex::HumanPrimaryCellAtlasData(),
+    "Novershtern" = celldex::NovershternHematopoieticData()
+  )
+}
+
+################ CLUSTIFYR WRAPPER ################
+clustifyr_wrapper <- function(SeuratObj, REF_MATRIX, clustifyr_colname) {
+  # clustify using
+  correlation_matrix <- clustify(
+    input = SeuratObj[[analyses$clustifyr_assay]]@data,
+    metadata = SeuratObj@meta.data,
+    cluster_col = paste0("Cluster", analyses$viz_clustering),
+    ref_mat = REF_MATRIX,
+    query_genes = FindVariableFeatures(
+      SeuratObj, assay = "RNApreSCT"
+    )[["RNApreSCT"]]@var.features
+  )
+  
+  # predicted type with correlation coefficients
+  correlation_coefficients <- cor_to_call(
+    cor_mat = correlation_matrix,
+    cluster_col = paste0("Cluster", analyses$viz_clustering)
+  )
+  
+  # plot heatmap
+  pdf(paste0(
+    heatDirectory, "heatmap", ObjName, Subset,
+    "_res", RESOLUTION, "_cellIdentities_",
+    analyses$viz_clustering, "Cluster.pdf"
+  ), width = 7, height = 6
+  )
+  heatmap.2(
+    correlation_matrix,
+    col=viridis, trace = "none",
+    dendrogram = "none",
+    offsetRow= -29, margins = c(8, 5)
+  )
+  dev.off()
+  
+  # add metadata to SeuratObj
+  SeuratObj@meta.data <- call_to_metadata(
+    res = correlation_coefficients,
+    metadata = SeuratObj@meta.data,
+    cluster_col = paste0("Cluster", analyses$viz_clustering)
+  )
+  
+  SeuratObj@meta.data[clustifyr_colname] <- SeuratObj$type
+  SeuratObj$type <- NULL
+  SeuratObj$r <- NULL
+  
+  return (SeuratObj)
+  
+}
 }
 
 ############################# PLOTTING FUNCTIONS ###############################
@@ -887,7 +1061,8 @@ plot_umap <- function(
   color_reverse = FALSE,
   title_font_size = 20, x_font_size = 20, y_font_size = 20, 
   pt_size = 0.6, split_by = NULL, ncol_dimplot = 1, ncol_guide = 1,
-  label_clusters = FALSE, repel_labels = FALSE, label_size = 4
+  label_clusters = FALSE, repel_labels = FALSE, label_size = 4,
+  shuffle = F, order = NULL
 ) {
   color_by <- group_by
   # get colors
@@ -903,7 +1078,8 @@ plot_umap <- function(
     seurat_object, reduction = reduction, group.by = group_by,
     cols = manual_colors,
     pt.size = pt_size, split.by = split_by, ncol = ncol_dimplot,
-    label = label_clusters, repel = repel_labels, label.size = label_size
+    label = label_clusters, repel = repel_labels, label.size = label_size,
+    shuffle = shuffle, order = order
   ) +
     ggmin::theme_min() +
     scale_y_continuous(breaks = NULL) +
@@ -1459,13 +1635,6 @@ GEX_pca <- function(SeuratObjMYSC, file, specific_PCA_features = F) {
         ))
     )
     
-    # PCA_features <- unlist(case_sensitive_features(
-    #   SeuratObjMYSC,
-    #   unlist(flatten(
-    #     master[[paste0(config$pca_features, "_lineage_markers")]]
-    #   ))
-    # ))
-    
     # add projectils features
     if (config$pca_features == "T") {
       if (! exists("ref_projectils")) {
@@ -1804,6 +1973,83 @@ get_GEO_unzip <- function() {
   }
 }
 
+################ CUSTOM TIDY ATLAS FOR MERGE ###################
+{
+  determine_orig_ident <- function(idx, cellnames, libraries, IDfrags) {
+    library <- libraries[[idx]]
+    cell_name <- cellnames[[idx]]
+    IDfrag <- IDfrags[[idx]]
+    return_value <- str_split(cell_name, "_")[[1]][1]
+    if (! grepl("MYSC", return_value, fixed = F)) {
+      if (! is.na(library)) {
+        return_value <- library
+      } else {
+        return_value <- IDfrag
+      }
+      
+    }
+    return (return_value)
+  }
+  
+  
+  set_orig_ident <- function(refSeuratObj) {
+    orig.idents <- lapply(
+      seq_along(orig_library), 
+      determine_orig_ident, 
+      rownames(refSeuratObj@meta.data),
+      refSeuratObj$Library,
+      refSeuratObj$IDfrag
+    )
+    refSeuratObj$orig.ident <- unlist(orig.idents)
+    refSeuratObj$Library <- refSeuratObj$orig.ident
+    return (refSeuratObj)
+  }
+  
+  remove_unnecessary_metadata <- function(
+    refSeuratObj, keep_cols = NA, replacements = NA
+  ) {
+    for (col_name in colnames(refSeuratObj@meta.data)) {
+      if (! col_name %in% keep_cols) {
+        refSeuratObj@meta.data[col_name] <- NULL
+      }
+    }
+    
+    for (original in names(replacements)) {
+      if (original %in% colnames(refSeuratObj@meta.data)) {
+        replacement <- replacements[[original]]
+        refSeuratObj@meta.data[replacement] <- 
+          refSeuratObj@meta.data[original]
+        refSeuratObj@meta.data[original] <- NULL
+      }
+    }
+    
+    # call refSeuratObj <- tidy_metadata(refSeuratObj, config$)
+    return (refSeuratObj)
+  }
+  
+  master_tidy_atlas_metadata <- function(refSeuratObj) {
+    # remove annoying cols
+    refSeuratObj <- remove_unnecessary_metadata(
+      refSeuratObj, keep_cols = master$metadata_merger_keep
+    )
+    # set orig.ident and Library cols
+    refSeuratObj <- set_orig_ident(refSeuratObj)
+    
+    # # remove sample ndGBM-05 (repeat of MYSC70)
+    # refSeuratObj <- subset(
+    #   refSeuratObj, Patient != "ndGBM-05"
+    #   )
+    return (refSeuratObj)
+  }
+  
+  
+}
+
+############### CUSTOM TIDY MATCHING PATIENTS FOR MERGE #################
+{
+  
+}
+
 }
 
 
@@ -1814,26 +2060,31 @@ subset_Tcells <- function(seurat_object) {
   seurat_object <- subset(
     x = seurat_object,
     subset = 
-      SingleR == "CD8+ T-cells" |
-      SingleR == "CD4+ T-cells" |
-      projecTILs == "CD8_EffectorMemory" |
-      projecTILs == "Th1" |
-      projecTILs == "CD8_Tex" |
-      projecTILs == "Treg" |
-      projecTILs == "CD8_Tpex" |
-      projecTILs == "Tfh" |
-      projecTILs == "CD8_EarlyActiv" | 
-      projecTILs == "CD8_NaiveLike" | 
-      projecTILs == "CD4_NaiveLike"
+      # (
+      #   SingleR_BlueprintEncode == "CD8+ T-cells" |
+      #   SingleR_BlueprintEncode == "CD4+ T-cells"
+      # ) &
+      # (
+      #   SingleR_HPCA == "T_cells"
+      # ) &
+      (
+        SingleR_Novershtern == "NK T cells" |
+        SingleR_Novershtern == "CD4+ T cells" |
+        SingleR_Novershtern == "CD8+ T cells"
+      ) |
+      (
+        projecTILs == "CD8_EffectorMemory" |
+        projecTILs == "Th1" |
+        projecTILs == "CD8_Tex" |
+        projecTILs == "Treg" |
+        projecTILs == "CD8_Tpex" |
+        projecTILs == "Tfh" |
+        projecTILs == "CD8_EarlyActiv" |
+        projecTILs == "CD8_NaiveLike" |
+        projecTILs == "CD4_NaiveLike"
+      )
   )
   
-  write.csv(
-    table(seurat_object$SingleR, seurat_object$projecTILs),
-    paste0(
-      OutputDirectory, ObjName, Subset,
-      " SingleR vs projecTILs cell type table.csv"
-    )
-  )
   return (seurat_object)
 }
 #################### WRITE ATLAS NORMALIZATION COUNTS ##################

@@ -1,13 +1,13 @@
 {
 	"sample_info": {
-		"ESC8" : "CONTROL-01",
-		"ESC9" : "CONTROL-01",
-		"MYSC70": "MDAG-06",
-		"MYSC71": "MDAG-06",
-		"MYSC95": "MDAG-30",
-		"MYSC96": "MDAG-30",
-		"MYSC97": "MDAG-31",
-		"MYSC98": "MDAG-31"
+		"ESC8" : "CONTROL-01_blood",
+		"ESC9" : "CONTROL-01_blood",
+		"MYSC70": "GBM-06_tumor",
+		"MYSC71": "GBM-06_blood",
+		"MYSC95": "GBM-30_blood",
+		"MYSC96": "GBM-30_tumor",
+		"MYSC97": "GBM-31_blood",
+		"MYSC98": "GBM-31_tumor"
 	},
 	"group_info": {
 		"ESC8" : "blood",
@@ -58,6 +58,8 @@
 		"MYSC97": "IV",
 		"MYSC98": "IV"
 	},
+
+
 
 	"ADT_PRESENT": {
 		"ESC8" : false,

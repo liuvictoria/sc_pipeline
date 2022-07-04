@@ -1,7 +1,9 @@
-################# LOAD UTILS  ##############
+################# LOAD UTILS + SEURATOBJ ##############
 source("~/Box/Yun lab projects/victoria_liu/matching_patients/R_Code/utils.R")
 
-analyses <- fromJSON(file = here("analysis.json"))
+# capture session info, versions, etc.
+write_experimental_configs(suffix = "_ADT")
+
 # this object is fully pre-processed for GEX
 # it must include ADT data, but the ADT data is not yet preprocessed
 # QC and doublet removal have already been done, courtesy of GEX
@@ -114,18 +116,4 @@ saveRDS(
     RobjDirectory, ObjName, Subset, 
     "_resAll.rds"
   )
-)
-
-# capture session info, versions, etc.
-writeLines(
-  capture.output(sessionInfo()), 
-  paste0(ConfigDirectory, ObjName, "_", Subset, "_sessionInfo_ADT.txt")
-)
-file.copy(
-  from = here("config.json"), 
-  to = paste0(ConfigDirectory, ObjName, "_", Subset, "_config_params_ADT.json")
-)
-file.copy(
-  from = here("analysis.json"), 
-  to = paste0(ConfigDirectory, ObjName, "_", Subset, "_analysis_params_ADT.json")
 )

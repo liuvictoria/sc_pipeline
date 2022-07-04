@@ -1,9 +1,10 @@
 ################# LOAD UTILS  ##############
 source("~/Documents/victoria_liu/matching_patients/R_Code/utils.R")
 
+# capture session info, versions, etc.
+write_experimental_configs()
 
-
-############# SUBSET CELLS ############
+############# SUBSET CELLS FROM PARENT ############
 superset_assay <- ifelse (
   USE_ADT,
   "ADT",
@@ -27,12 +28,16 @@ SeuratObj <- subset(
   SeuratObj, idents = analyses$denovo_subset
 )
 for (cluster_remove in analyses$denovo_clusters_remove) {
-  SeuratObj <- subset(
-    SeuratObj, subset = ClusterRNA != cluster_remove
+  if (ObjName == "GEX" & ! USE_ADT) {
+    SeuratObj <- subset(
+      SeuratObj, subset = ClusterRNA != cluster_remove
     )
-  SeuratObj <- subset(
-    SeuratObj, subset = ClusterADT != cluster_remove
-  )
+  }
+  if (USE_ADT & ObjName == "ADT") {
+    SeuratObj <- subset(
+      SeuratObj, subset = ClusterADT != cluster_remove
+    )
+  }
 }
 
 ######## NORMALIZATION ########
@@ -43,49 +48,34 @@ if (USE_ADT & ObjName == "ADT") {
   SeuratObj <- ADT_integrate(SeuratObj)
 }
 
-# #################  CELL POPULATION: SINGLER ###################
-# ref_singler <- celldex::BlueprintEncodeData()
-# 
-# SeuratObj <- SingleR_wrapper(SeuratObj, ref_singler)
-# 
-# ################# (T CELLS ONLY) ASSIGNMENT ####################
-{
-#   ################# CELL POPULATION: PROJECTILS NO GATING ###################
-#   # load murine TIL reference
-#   ref_projectils_filename <- paste0(
-#     dataDirectory, "projecTILs/", analyses$projecTILs_ref,
-#     "_processed_mouse2human_reference.rds"
-#   )
-#   print(paste0(
-#     "trying to read projecTILs reference: ",
-#     ref_projectils_filename
-#   ))
-#   # ideally, it has already been pre-processed from murine to human
-#   if (file.exists(ref_projectils_filename)) {
-#     ref_projectils <- readRDS(ref_projectils_filename)
-#   } else {
-#     print("projecTILs reference has not been processed, processing now")
-#     # we will preprocess from murine to human
-#     # also includes recomp of umap / pca according to projecTILs spec
-#     # first read in the original reference
-#     ref_projectils <- readRDS(paste0(
-#       dataDirectory, "projecTILs/", analyses$projecTILs_ref,
-#       "_mouse_atlas.rds"
-#     ))
-#     ref_projectils <- projectils_ref_full_translation (
-#       ref_projectils, SeuratObj
-#     )
-#   }
-#   
-#   SeuratObj <- projecTILs_wrapper(SeuratObj, ref_projectils, gating = TRUE)
-#   
-#   
-#   ##################### REMOVE NK CELLS ####################
-#   SeuratObj <- subset_Tcells(SeuratObj)
-#   
-#   ################# PROJECTILS NO GATING #################
-#   SeuratObj <- projecTILs_wrapper(SeuratObj, ref_projectils, gating = FALSE)
+#################  CELL POPULATION: SINGLER ###################
+if (! exists("refs_singler")) {
+  define_refs_singler()
 }
+for (reference_name in names(refs_singler)) {
+  SeuratObj <- SingleR_wrapper(
+    SeuratObj, refs_singler[[reference_name]],
+    reference_name, celltype = Subset
+  )
+}
+
+
+
+################# (T CELLS ONLY) PROJECTILS ASSIGNMENT ####################
+if (analyses$denovo_lineage == "T" & grepl("T", Subset, fixed = T)) {
+  ################# CELL POPULATION: PROJECTILS WITH GATING ###################
+  # assuming ref projectils has already been preprocessed; 
+  # otherwise need to pass in a SeuratObj
+  ref_projectils <- load_ref_projectils()
+  SeuratObj <- projecTILs_wrapper(SeuratObj, ref_projectils, gating = TRUE)
+  
+  ##################### REMOVE NK CELLS ####################
+  # remove NK cells based on projecTILs and SingleR
+  SeuratObj <- subset_Tcells(SeuratObj)
+  
+  
+}
+
 ######## PCA (GEX) ########
 SeuratObj <- GEX_pca(
   SeuratObj, 
@@ -181,7 +171,7 @@ SeuratObj@meta.data[, ] <- lapply(
   SeuratObj@meta.data, 
   function(x) type.convert(as.character(x), as.is = TRUE)
 )
-############## SAVE SEURAT AND SESSION INFO, LOOSE ENDS ################
+############## SAVE SEURAT ################
 saveRDS(
   SeuratObj, 
   file = paste0(
@@ -189,20 +179,4 @@ saveRDS(
     "_resAll.rds"
     )
 )
-
-
-# capture session info, versions, etc.
-writeLines(
-  capture.output(sessionInfo()), 
-  paste0(ConfigDirectory, ObjName, "_", Subset, "_sessionInfo.txt")
-)
-file.copy(
-  from = here("config.json"), 
-  to = paste0(ConfigDirectory, ObjName, "_", Subset, "_config_params.json")
-)
-file.copy(
-  from = here("analysis.json"), 
-  to = paste0(ConfigDirectory, ObjName, "_", Subset, "_analysis_params.json")
-)
-
 

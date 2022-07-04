@@ -1,8 +1,12 @@
 ################# LOAD UTILS  ##############
 source("~/Documents/victoria_liu/matching_patients/R_Code/utils.R")
-SeuratSamples <- list()
+
+# capture session info, versions, etc.
+write_experimental_configs(suffix = "_RNA")
+
 
 ######### QC + Doublet removal ########
+SeuratSamples <- list()
 if (!config$aggr_cells & !config$preprocess_existing_atlas) {
   
   for(i in 1:length(FILES)){
@@ -18,8 +22,7 @@ if (!config$aggr_cells & !config$preprocess_existing_atlas) {
     ) 
     
     # if there is also ADT data
-    regexp <- "[[:digit:]]+"
-    both_assays <- ADT_PRESENT[[str_extract(FILES[i], regexp)]]
+    both_assays <- ADT_PRESENT[[FILES[i]]]
     
     
     # create Seurat obj
@@ -133,27 +136,9 @@ if (! config$aggr_cells) {
   )
 }
 
+### ADD METADATA
 if (! config$preprocess_existing_atlas) {
-  SeuratObj <- add_master_medatadata(SeuratObj, master$sample_info, "Sample")
-  SeuratObj <- add_master_medatadata(SeuratObj, master$patient_info, "Patient")
-  SeuratObj <- add_master_medatadata(SeuratObj, master$group_info, "Group")
-  SeuratObj <- add_master_medatadata(SeuratObj, master$grade_info, "Grade")
-  SeuratObj <- add_master_medatadata(SeuratObj, master$type_info, "Type")
-  # sex is lowercase in Nour's atlas
-  SeuratObj <- add_master_medatadata(SeuratObj, master$sex_info, "sex")
-  
-  # Fragment / IDFrag
-  add_single_fragment_postfix <- function(orig_ident) {
-    return (paste0(orig_ident, "_1"))
-  }
-  Fragment <- unlist(lapply(SeuratObj$Patient, add_single_fragment_postfix))
-  SeuratObj <- AddMetaData(
-    object = SeuratObj, metadata = Fragment, col.name = "Fragment"
-  )
-  IDFrag <- unlist(lapply(SeuratObj$Sample, add_single_fragment_postfix))
-  SeuratObj <- AddMetaData(
-    object = SeuratObj, metadata = IDFrag, col.name = "IDFrag"
-  )
+  SeuratObj <- add_all_master_metadata(SeuratObj)
 }
 
 # add categories for ribosomal expression (for dimplot)
@@ -267,27 +252,32 @@ SeuratObj <- GEX_normalization(SeuratObj)
 ########### CELL CYCLE REGRESSION (GEX) #############
 SeuratObj <- GEX_cc_regression(SeuratObj)
 
-# ################# (T CELLS ONLY) ASSIGNMENT ####################
- # {
-{
- #  #################  CELL POPULATION: SINGLER ###################
- #  ref_singler <- celldex::BlueprintEncodeData()
- # 
- #  SeuratObj <- SingleR_wrapper(SeuratObj, ref_singler)
- # 
- #  ################# CELL POPULATION: PROJECTILS NO GATING ###################
- #  ref_projectils <- load_ref_projectils()
- # 
- #  SeuratObj <- projecTILs_wrapper(SeuratObj, ref_projectils, gating = TRUE)
- # 
- # 
- #  ##################### REMOVE NK CELLS####################
- #  SeuratObj <- subset_Tcells(SeuratObj)
- # 
- #  ################# PROJECTILS NO GATING #########
- #  SeuratObj <- projecTILs_wrapper(SeuratObj, ref_projectils, gating = FALSE)
- # }
+#################  CELL POPULATION: SINGLER ###################
+if (! exists("refs_singler")) {
+  define_refs_singler()
 }
+for (reference_name in names(refs_singler)) {
+  SeuratObj <- SingleR_wrapper(
+    SeuratObj, refs_singler[[reference_name]],
+    reference_name, celltype = Subset
+  )
+}
+
+
+
+# ################# (T CELLS ONLY) PROJECTILS ASSIGNMENT ####################
+if (analyses$denovo_lineage == "T" & grepl("T", Subset, fixed = T)) {
+  ################# CELL POPULATION: PROJECTILS WITH GATING ###################
+  # assuming ref projectils has already been preprocessed;
+  # otherwise need to pass in a SeuratObj
+  ref_projectils <- load_ref_projectils()
+  SeuratObj <- projecTILs_wrapper(SeuratObj, ref_projectils, gating = TRUE)
+
+  ##################### REMOVE NK CELLS ####################
+  # remove NK cells based on projecTILs and SingleR
+  SeuratObj <- subset_Tcells(SeuratObj)
+ }
+
 ########### PCA & HARMONY BATCH CORRECTION (GEX) ##########
 SeuratObj <- SeuratObj %>% 
   GEX_pca("all samples", specific_PCA_features = T) %>% 
@@ -352,21 +342,6 @@ saveRDS(
     RobjDirectory, ObjName, Subset, 
     "_resAll.rds"
     )
-)
-
-
-# capture session info, versions, etc.
-writeLines(
-  capture.output(sessionInfo()), 
-  paste0(ConfigDirectory, ObjName, "_", Subset, "_sessionInfo_RNA.txt")
-)
-file.copy(
-  from = here("config.json"), 
-  to = paste0(ConfigDirectory, ObjName, "_", Subset, "_config_params_RNA.json")
-)
-file.copy(
-  from = here("analysis.json"), 
-  to = paste0(ConfigDirectory, ObjName, "_", Subset, "_analysis_params_RNA.json")
 )
 
 
