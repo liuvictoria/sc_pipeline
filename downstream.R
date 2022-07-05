@@ -4,7 +4,8 @@
 ################# LOAD UTILS ##############
 source("~/Documents/victoria_liu/matching_patients/R_Code/utils.R")
 
-
+# capture session info, versions, etc.
+write_experimental_configs()
 #
 #################### PAN CANCER T CELLS #####################
 # # get GEO files
@@ -41,7 +42,11 @@ for (i in 1: length(counts_files)){
       project = cancer_subtype,
       meta.data = meta_data
       )
-    # assign(cancer_subtype, seurat_obj)
+    # only want tumor cells, not normal cells
+    seurat_obj <- subset(
+      seurat_obj,
+      subset = loc == "T"
+    )
     cancer_names[length(cancer_names) + 1] <- cancer_subtype
     cancer_objects[[length(cancer_objects) + 1]] <- seurat_obj
   }
@@ -51,8 +56,7 @@ stopifnot(length(cancer_objects) == length(config$FILES))
 # doublet removal
 for (idx in 1:length(cancer_names)) {
   print(cancer_names[idx])
-  cancer_object <- cancer_objects[[idx]]
-  cancer_object <- GEX_QC(cancer_object, FILES[idx])
+  cancer_object <- GEX_QC(cancer_objects[[idx]], FILES[idx])
   
   # save object
   saveRDS(cancer_object, file = paste0(RobjDirectory, FILES[idx], ".rds"))
@@ -65,6 +69,23 @@ external_pan <- merge(
   x = cancer_objects[[1]], y = cancer_objects[-1], 
   add.cell.ids = config$FILES
   )
+# beautify metadata
+add_tumor_suffix <- function(word) {
+  return (paste0(word, "_tumor"))
+}
+external_pan$Sample <- unlist(lapply(external_pan$libraryID, add_tumor_suffix))
+external_pan$Group <- "tumor"
+external_pan$Patient <- external_pan$patient
+external_pan$Type <- external_pan$cancerType
+external_pan$Assignment <- external_pan$meta.cluster
+
+# external_pan$libraryID <- NULL
+# external_pan$patient <- NULL
+# external_pan$cancerType <- NULL
+# external_pan$meta.cluster <- NULL
+
+
+
 # saving takes a long time
 saveRDS(
   external_pan,
@@ -72,11 +93,6 @@ saveRDS(
 )
 external_pan <- readRDS(paste0(RobjDirectory, ObjName, Subset, "_external.rds"))
 
-# data validation (only use tumor cells)
-external_pan <- subset(
-  external_pan,
-  subset = loc == "T"
-)
 
 # normalize data
 external_pan <- GEX_normalization(external_pan)

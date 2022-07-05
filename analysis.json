@@ -2,10 +2,9 @@
 	"pcaADT_dims": 12,
 	"harmonyRNA_dims": 12,
 
-	"markers_assay": "RNA",
 	"viz_clustering": "RNA",
 
-	"which_assignment": "clustifyr",
+	"which_assignment": "Assignment",
 	"clustifyr_assay": "RNApreSCT",
 	"SingleR_assay": "RNApreSCT",
 
@@ -13,12 +12,14 @@
 	"projecTILs_ref": "TIL",
 	"gate_projecTILs": true,
 
-	"cluster_prefix": "C",
+	"cluster_prefix": "TC",
 	"cluster_to_assignment": {
 	},
 
 	"hue_palette": "nourpal",
 	"chromatose_subtype_by": ["blood", "tumor"],
+
+	"GEO": "GSE156728",
 
 	"denovo": false,
 	"denovo_lineage": "A",

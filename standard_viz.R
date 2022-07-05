@@ -4,9 +4,16 @@ source("~/Documents/victoria_liu/matching_patients/R_Code/utils.R")
 # capture session info, versions, etc.
 write_experimental_configs()
 
-# this object is fully pre-processed for GEX
+# this object is fully pre-processed for GEX and/or ADT
+if (ObjName != "WNN") {
+  tmpObjName <- ObjName
+} else {
+  # ADT and WNN are preprocessed in the same object, called ADT
+  tmpObjName <- "ADT"
+}
+
 RDS_filename <- paste0(
-  RobjDirectory, ObjName, Subset, 
+  RobjDirectory, tmpObjName, Subset, 
   "_resAll.rds"
 )
 if (! file.exists(RDS_filename)) {
@@ -69,24 +76,23 @@ if (analyses$viz_clustering == "RNA") {
     OutputDirectory, ObjName, Subset, 
     " RNA cluster markers (by RNA)", "res", RESOLUTION, ".csv"
     )
-  markers <- cluster_markers(
+  markersRNA <- cluster_markers(
     SeuratObj, assay = "RNA", default_ident = "ClusterRNA"
     )
   # save, because it takes a little time to calculate
-  write.csv(markers, markers_filename)
+  write.csv(markersRNA, markers_filename)
 
-  
   
 } else if (analyses$viz_clustering == "ADT") {
   markers_filename <- paste0(
     OutputDirectory, ObjName, Subset, 
     " ADT cluster markers (by ADT)", "res", RESOLUTION, ".csv"
   )
-  markers <- cluster_markers(
+  markersADT <- cluster_markers(
     SeuratObj, assay = "ADT", default_ident = "ClusterADT"
   )
   # save, because it takes a little time to calculate
-  write.csv(markers, markers_filename)
+  write.csv(markersADT, markers_filename)
   
 
 } else if (analyses$viz_clustering == "WNN") {
@@ -110,31 +116,13 @@ if (analyses$viz_clustering == "RNA") {
   )
   # save, because it takes a little time to calculate
   write.csv(markersADT, markersADT_filename)
-  markers <- markersRNA
 }
 
 ############### CLUSTER / SAMPLE HEATMAP ##################
-
-HM_object <- plot_heatmap (
-  seurat_object = SeuratObj, downsample_n = 5000,
-  markers = markers, top_n = 20, label_n = 2, 
-  cluster = paste0("Cluster", analyses$viz_clustering),
-  data_type = "logcounts",
-  use_raster = TRUE
-)
-
-pdf(paste0(
-  heatDirectory, "heatmap", ObjName, Subset, 
-  "_res", RESOLUTION, "_top20 ", analyses$markers_assay, " features per ", 
-  analyses$viz_clustering, "Cluster.pdf"
-), width = 7, height = 6
-)
-draw(
-  HM_object[[1]], 
-  heatmap_legend_list = list(HM_object[[2]], HM_object[[3]]),
-  heatmap_legend_side = "right"
-)
-dev.off()
+# RNA only
+if (analyses$viz_clustering != "ADT") {
+  heatmap_wrapper(SeuratObj, markersRNA, "RNA")
+} 
 
 
 
@@ -204,6 +192,7 @@ U1 <- plot_umap(
   reduction = paste0("umap", analyses$viz_clustering),
   title = "Clusters", xlab = "UMAP1", ylab = "UMAP2",
   legend_position = "bottom",
+  label_size = 5,
   ncol_guide = 5,
   color_reverse = TRUE, label_clusters = TRUE,
   shuffle = TRUE
@@ -262,88 +251,64 @@ print(U3)
 dev.off()
 
 
-################# (CUSTOM) CELL POPULATION: CLUSTIFYR ###################
-# refSeuratObj <- readRDS(
-#   paste0(
-#     RobjDir,
-#     "GBMAtlas/",
-#     "MyeloidClusters-11-4-21-patients renamed.rds"
-#   )
+# ################# (CUSTOM) CELL POPULATION: CLUSTIFYR ###################
+# # refSeuratObj <- readRDS(
+# #   paste0(
+# #     RobjDir,
+# #     "GBMAtlas/",
+# #     "MyeloidClusters-11-4-21-patients renamed.rds"
+# #   )
+# # )
+# 
+# # gam_git_gib <- list(
+# #   Myeloid = "GAM",
+# #   TCells = "GIT",
+# #   BCells = "GIB"
+# # )
+# #
+# # CellInfo <- refSeuratObj@meta.data
+# # for (i in 1:length(gam_git_gib)) {
+# #   CellInfo$Assignment[
+# #     which(str_detect(refSeuratObj$Assignment, names(gam_git_gib[i])))
+# #   ] <- gam_git_gib[[i]]
+# # }
+# #
+# # refSeuratObj$Assignment <- CellInfo$Assignment
+# #
+# # saveRDS(
+# #   refSeuratObj,
+# #   file = paste0(
+# #     RobjDir,
+# #     "GBMAtlas/",
+# #     "Allhuman-11-3-21.rds"
+# #   )
+# # )
+# 
+# 
+# # seurat_ref_matrix <- seurat_ref(
+# #   seurat_object = refSeuratObj,
+# #   cluster_col = "Assignment"
+# # )
+# 
+# REF_MATRICES <- list(
+#   # seurat_ref_matrix,
+#   cbmc_ref
 # )
-
-# gam_git_gib <- list(
-#   Myeloid = "GAM",
-#   TCells = "GIT",
-#   BCells = "GIB"
+# REF_MATRICES_NAMES <- list(
+#   # "nour_myeloid",
+#   "cbmc"
 # )
-#
-# CellInfo <- refSeuratObj@meta.data
-# for (i in 1:length(gam_git_gib)) {
-#   CellInfo$Assignment[
-#     which(str_detect(refSeuratObj$Assignment, names(gam_git_gib[i])))
-#   ] <- gam_git_gib[[i]]
+# stopifnot(length(REF_MATRICES) == length(REF_MATRICES_NAMES))
+# 
+# for (idx in 1:length(REF_MATRICES)) {
+#   REF_MATRIX <- REF_MATRICES[[idx]]
+#   REF_MATRIX_NAME <- REF_MATRICES_NAMES[idx]
+#   clustifyr_colname <- paste0("clustifyr_", REF_MATRIX_NAME)
+# 
+#   SeuratObj <- clustifyr_wrapper(SeuratObj, REF_MATRIX, clustifyr_colname)
+# 
 # }
-#
-# refSeuratObj$Assignment <- CellInfo$Assignment
-#
-# saveRDS(
-#   refSeuratObj,
-#   file = paste0(
-#     RobjDir,
-#     "GBMAtlas/",
-#     "Allhuman-11-3-21.rds"
-#   )
-# )
-
-
-# seurat_ref_matrix <- seurat_ref(
-#   seurat_object = refSeuratObj,
-#   cluster_col = "Assignment"
-# )
-
-REF_MATRICES <- list(
-  # seurat_ref_matrix,
-  cbmc_ref
-)
-REF_MATRICES_NAMES <- list(
-  # "nour_myeloid",
-  "cbmc"
-)
-stopifnot(length(REF_MATRICES) == length(REF_MATRICES_NAMES))
-
-for (idx in 1:length(REF_MATRICES)) {
-  REF_MATRIX <- REF_MATRICES[[idx]]
-  REF_MATRIX_NAME <- REF_MATRICES_NAMES[idx]
-  clustifyr_colname <- paste0("clustifyr_", REF_MATRIX_NAME)
-  
-  SeuratObj <- clustifyr_wrapper(SeuratObj, REF_MATRIX, clustifyr_colname)
-  
-  clustifyr_plot <- plot_umap(
-    seurat_object = SeuratObj, group_by = clustifyr_colname,
-    reduction = paste0("umap", analyses$viz_clustering),
-    title = paste0(REF_MATRIX_NAME, " clustifyr Assignment"), 
-    xlab = "UMAP1", ylab = "UMAP2",
-    legend_position = "bottom",
-    ncol_guide = 4,
-    label_clusters = TRUE, 
-    label_size = 5,
-    color_reverse = FALSE,
-    repel_labels = TRUE
-  )
-  
-  pdf(paste0(
-    clustifyrDirectory, ObjName, Subset, 
-    "_res", RESOLUTION, "_", clustifyr_colname, ".pdf"
-  ), width = 10, height = 7, family = FONT_FAMILY
-  )
-  print(clustifyr_plot)
-  dev.off()
-
-}
-
-
-
-
+# 
 
 ################# (CUSTOM) MANUAL CELL ASSIGNMENT ###############
 # add desired automated assignment to Assignment column
@@ -352,7 +317,9 @@ if (
   analyses$which_assignment %in% colnames(SeuratObj@meta.data)
 ) {
   SeuratObj$Assignment <- SeuratObj[[analyses$which_assignment]]
-}
+} else (
+  print ("did not update Assignment; could not find column")
+)
 if (analyses$which_assignment == "Assignment") {
   analyses$which_assignment <- "Manual"
 }
@@ -615,7 +582,8 @@ dev.off()
 
 
 ################# (GEX) DOTPLOTS ###################
-if (analyses$viz_clustering == "RNA") {
+# we want GEX dotplots for GEX or WNN umaps
+if (analyses$viz_clustering != "ADT") {
 dotgraphs_GEX <- list()
 for (cluster_name in names(Clusterspecificgenes)) {
   cluster_genes <- Clusterspecificgenes[[cluster_name]]
@@ -626,7 +594,6 @@ for (cluster_name in names(Clusterspecificgenes)) {
   )
   
   dotgraphs_GEX[[cluster_name]] <- D1
-  
 
 }
 
@@ -637,7 +604,7 @@ dot_plots_GEX <- ggpubr::ggarrange(
 )
 
 pdf(paste0(
-  dotDirectory, "dotplot ", ObjName, Subset,
+  dotDirectory, "GEX dotplot ", ObjName, Subset,
   " by predefined Cluster ",
   analyses[["denovo_lineage"]],
   ".pdf"
@@ -653,12 +620,10 @@ dev.off()
 D2 <- plot_dotgraph(
   seurat_object = SeuratObj,
   group_by = paste0("Cluster", analyses$viz_clustering),
-  features = unique(get_top_cluster_markers(markers, 5)$marker),
+  features = unique(get_top_cluster_markers(markersRNA, 5)$marker),
   title = "Top 5 genes by cluster",
   features_sorted = TRUE
 )
-
-
 pdf(paste0(
   dotDirectory, "dotplot ", ObjName, Subset, "top 5 genes by Cluster.pdf"
 ), width = 22, height = 8
@@ -709,7 +674,7 @@ dot_plots_ADT <- ggpubr::ggarrange(
 )
 
 pdf(paste0(
-  dotDirectory, "dotplot ", ObjName, Subset,
+  dotDirectory, "CSP dotplot ", ObjName, Subset,
   "by predefined Cluster ", analyses[["denovo_lineage"]],
   ".pdf"
 ), 
@@ -720,6 +685,23 @@ family = FONT_FAMILY
 print(dot_plots_ADT)
 dev.off()
 
+
+
+D3 <- plot_dotgraph(
+  seurat_object = SeuratObj,
+  group_by = paste0("Cluster", analyses$viz_clustering),
+  features = unique(get_top_cluster_markers(markersADT, 5)$marker),
+  title = "Top 5 CSP by cluster",
+  features_sorted = TRUE,
+  assay = "ADT"
+)
+pdf(paste0(
+  dotDirectory, "dotplot ", ObjName, Subset, 
+  "top 5 CSP by ", analyses$viz_clustering, " Cluster.pdf"
+), width = 22, height = 8
+)
+print(D3)
+dev.off()
   
 }
 ########### (GEX) PREDEFINED CLUSTER FEATURE PLOTS #############

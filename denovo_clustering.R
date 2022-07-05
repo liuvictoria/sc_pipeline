@@ -180,3 +180,14 @@ saveRDS(
     )
 )
 
+if (ObjName != "GEX") {
+  saveRDS(
+    SeuratObj, 
+    file = paste0(
+      RobjDirectory, "GEX", Subset, 
+      "_resAll.rds"
+    )
+  )
+  
+}
+

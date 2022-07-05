@@ -63,7 +63,37 @@ if (F) {
   install.packages("magick")
   install.packages("rjson")
   install.packages("PerformanceAnalytics")
-  
+  MyPackages <- c(
+    "dplyr", "ggplot2", 
+    # "ggpubr", 
+    "gridExtra", "viridis", 
+    "egg",
+    "grid", "lattice", "gtools", "Biobase", "RColorBrewer", "tibble",
+    "Seurat", "cowplot", "patchwork", "stringr", "ComplexHeatmap", 
+    "SingleCellExperiment", 
+    # "ggmin", 
+    # "Nourpal", 
+    # "Cairo",
+    "harmony", 
+    # "magick", 
+    "viridis", "limma", 
+    "glmGamPoi", "rjson", "here", 
+    # "SeuratDisk",
+    "gplots", "clustifyr", "purrr", "clustree",
+    "SingleR", 
+    # "celldex", 
+    # "ProjecTILs", 
+    # "biomaRt", 
+    "data.table",
+    "umap", 
+    "pheatmap", "scDblFinder", "miQC", 
+    # "SeuratWrappers",
+    "PerformanceAnalytics", "corrplot", "GEOquery",
+    "slingshot", "ggbeeswarm", 
+    # "monocle3", 
+    "extrafont"
+    # "jpeg"
+  )
   
 }
 
@@ -102,7 +132,10 @@ library(Nourpal)
 
 
 
-################ SET + SAVE PARAMETERS ###############
+################ CONFIRM + SET + SAVE PARAMETERS ###############
+
+# make sure viz_clustering is good
+stopifnot (analyses$viz_clustering %in% c("RNA", "ADT", "WNN"))
 
 # resolution for cluster-finding after PCA
 RESOLUTIONS <- config$RESOLUTIONS
@@ -224,11 +257,6 @@ if (! dir.exists(projTILDirectory) & RESOLUTION == "All") {
   dir.create(projTILDirectory)
 } 
 singleRDirectory <- paste0(OutputDirectory, "/singleR/")
-if (RESOLUTION != "All") {
-  singleRDirectory <- str_replace(
-    singleRDirectory, paste0("Res", RESOLUTION), paste0("Res", "All")
-    )
-}
 if (! dir.exists(singleRDirectory)) {
   dir.create(singleRDirectory)
 } 
@@ -941,6 +969,29 @@ clustifyr_wrapper <- function(SeuratObj, REF_MATRIX, clustifyr_colname) {
   SeuratObj$type <- NULL
   SeuratObj$r <- NULL
   
+  
+  clustifyr_plot <- plot_umap(
+    seurat_object = SeuratObj, group_by = clustifyr_colname,
+    reduction = paste0("umap", analyses$viz_clustering),
+    title = paste0(clustifyr_colname, " Assignment"),
+    xlab = "UMAP1", ylab = "UMAP2",
+    legend_position = "bottom",
+    ncol_guide = 4,
+    label_clusters = TRUE,
+    label_size = 5,
+    color_reverse = FALSE,
+    repel_labels = TRUE
+  )
+  
+  pdf(paste0(
+    clustifyrDirectory, ObjName, Subset,
+    "_res", RESOLUTION, "_", clustifyr_colname, ".pdf"
+  ), width = 10, height = 7, family = FONT_FAMILY
+  )
+  print(clustifyr_plot)
+  dev.off()
+  
+  
   return (SeuratObj)
   
 }
@@ -1367,6 +1418,30 @@ plot_heatmap <- function(
   return (list(HM, lgd1, lgd2))
 }
 
+heatmap_wrapper <- function (
+    SeuratObj, markers, markers_assay
+) {
+  HM_object <- plot_heatmap (
+    seurat_object = SeuratObj, downsample_n = 5000,
+    markers = markers, top_n = 20, label_n = 2, 
+    cluster = paste0("Cluster", analyses$viz_clustering),
+    data_type = "logcounts",
+    use_raster = TRUE
+  )
+  
+  pdf(paste0(
+    heatDirectory, "heatmap", ObjName, Subset, 
+    "_res", RESOLUTION, "_top20 ", markers_assay, " features per ", 
+    analyses$viz_clustering, "Cluster.pdf"
+  ), width = 7, height = 6
+  )
+  draw(
+    HM_object[[1]], 
+    heatmap_legend_list = list(HM_object[[2]], HM_object[[3]]),
+    heatmap_legend_side = "right"
+  )
+  dev.off()
+}
 
 ######### TEMPLATE ARRANGE PLOTS W COMMON LEGEND ####
 grid_arrange_shared_legend <- function(

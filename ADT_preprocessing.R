@@ -1,5 +1,5 @@
 ################# LOAD UTILS + SEURATOBJ ##############
-source("~/Box/Yun lab projects/victoria_liu/matching_patients/R_Code/utils.R")
+source("~/Documents/victoria_liu/matching_patients/R_Code/utils.R")
 
 # capture session info, versions, etc.
 write_experimental_configs(suffix = "_ADT")

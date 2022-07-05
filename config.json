@@ -1,13 +1,13 @@
 {
     "FILES": [
-      "MYSC71", "MYSC95", "MYSC97"
+      "BC_4", "BC_8", "BCL_4", "BCL_8"
     ],
     "count_matrices_dir": "sample_feature_bc_matrix",
     "ObjName": "GEX",
-    "Subset": "PatientPBMC",
-    "pca_features": "variable",
+    "Subset": "TPan",
+    "pca_features": "T",
     "pca_variable_features": 2000,
-    "USE_ADT": true,
+    "USE_ADT": false,
     "SCT": true,
 
     "batch_norm_by": "Sample",
@@ -17,16 +17,13 @@
         0.5,
         0.7,
         0.8,
-        0.9,
-        1,
-        1.2,
-        1.4
+        0.9
     ],
-    "RESOLUTION": 0.3,
+    "RESOLUTION": "All",
 
     "aggr_cells": false,
     "aggr_FILES": [
-      "AllPBMC",
+      "PatientPBMC",
       "AllTumor"
     ],
     "aggr_resolutions": [
@@ -41,8 +38,7 @@
         "CD14+ Mono",
         "CD16+ Mono",
         "CD4 T",
-        "CD8 Effector T",
-        "CD8 Naive T",
+        "CD8 T",
         "DC",
         "NK",
         "pDCs"
