@@ -2,7 +2,9 @@
 source("~/Documents/victoria_liu/matching_patients/R_Code/utils.R")
 
 # capture session info, versions, etc.
-write_experimental_configs(suffix = "_RNA")
+write_experimental_configs(
+  suffix = "_RNA", code_file = "GEX_preprocessing"
+  )
 
 
 ######### QC + Doublet removal ########
@@ -252,6 +254,7 @@ SeuratObj <- GEX_normalization(SeuratObj)
 ########### CELL CYCLE REGRESSION (GEX) #############
 SeuratObj <- GEX_cc_regression(SeuratObj)
 
+
 #################  CELL POPULATION: SINGLER ###################
 if (! exists("refs_singler")) {
   define_refs_singler()
@@ -265,18 +268,20 @@ for (reference_name in names(refs_singler)) {
 
 
 
-# ################# (T CELLS ONLY) PROJECTILS ASSIGNMENT ####################
+################# (T CELLS ONLY) PROJECTILS ASSIGNMENT ####################
 if (analyses$denovo_lineage == "T" & grepl("T", Subset, fixed = T)) {
   ################# CELL POPULATION: PROJECTILS WITH GATING ###################
   # assuming ref projectils has already been preprocessed;
   # otherwise need to pass in a SeuratObj
   ref_projectils <- load_ref_projectils()
   SeuratObj <- projecTILs_wrapper(SeuratObj, ref_projectils, gating = TRUE)
-
+  
   ##################### REMOVE NK CELLS ####################
   # remove NK cells based on projecTILs and SingleR
   SeuratObj <- subset_Tcells(SeuratObj)
- }
+}
+
+
 
 ########### PCA & HARMONY BATCH CORRECTION (GEX) ##########
 SeuratObj <- SeuratObj %>% 
@@ -296,15 +301,27 @@ E1
 dev.off()
 
 
+######## RUN UMAP (GEX) ########
+SeuratObj <- RunUMAP(
+  SeuratObj,
+  reduction = "harmonyRNA",
+  dims = c(1:analyses$harmonyRNA_dims),
+  reduction.name = "umapRNA",
+  reduction.key = "umapRNA_"
+)
+
+
 ######## LOUVAIN CLUSTERING (GEX) ########
 for (resolution in config$RESOLUTIONS) {
   SeuratObj <- GEX_louvain(
-    SeuratObj, resolution = resolution, reduction = "harmonyRNA"
+    SeuratObj, resolution = resolution,
+    reduction = "umapRNA",
+    reduction_dims = analyses$umapRNA_dims
   )
 }
 # make sure there are no factors
 SeuratObj@meta.data[, ] <- lapply(
-  SeuratObj@meta.data, 
+  SeuratObj@meta.data,
   function(x) type.convert(as.character(x), as.is = TRUE)
   )
 
@@ -312,27 +329,22 @@ SeuratObj@meta.data[, ] <- lapply(
 SeuratObj$seurat_clusters <- NULL
 
 
-######## RUN UMAP (GEX) ########
-SeuratObj <- RunUMAP(
-  SeuratObj, 
-  reduction = "harmonyRNA", 
-  dims = c(1:analyses$harmonyRNA_dims),
-  reduction.name = "umapRNA",
-  reduction.key = "umapRNA_"
-)
 
 
 ############### VALIDATION VISUALIZATION ##############
 U1 <- plot_umap(
   seurat_object = SeuratObj, 
-  group_by = "RNA_snn_res.0.3",
+  group_by = "RNA_snn_res.0.15",
   reduction = paste0("umapRNA"),
   title = "Clusters", xlab = "UMAP1", ylab = "UMAP2",
   legend_position = "bottom",
   ncol_guide = 5,
-  color_reverse = TRUE, label_clusters = TRUE
+  color_reverse = F, label_clusters = TRUE
 )
 U1
+
+
+
 
 
 ############## SAVE SEURAT AND SESSION INFO, LOOSE ENDS ################
@@ -343,6 +355,3 @@ saveRDS(
     "_resAll.rds"
     )
 )
-
-
-

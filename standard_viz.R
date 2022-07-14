@@ -2,7 +2,7 @@
 source("~/Documents/victoria_liu/matching_patients/R_Code/utils.R")
 
 # capture session info, versions, etc.
-write_experimental_configs()
+write_experimental_configs(code_file = "standard_viz")
 
 # this object is fully pre-processed for GEX and/or ADT
 if (ObjName != "WNN") {
@@ -185,7 +185,7 @@ print(P4)
 dev.off()
 
 
-################# CLUSTER / SAMPLE DIMPLOTS ###################
+################# CLUSTER / SAMPLE DIMPLOTS ##################
 U1 <- plot_umap(
   seurat_object = SeuratObj,
   group_by = paste0("Cluster", analyses$viz_clustering),
@@ -252,13 +252,12 @@ dev.off()
 
 
 # ################# (CUSTOM) CELL POPULATION: CLUSTIFYR ###################
-# # refSeuratObj <- readRDS(
-# #   paste0(
-# #     RobjDir,
-# #     "GBMAtlas/",
-# #     "MyeloidClusters-11-4-21-patients renamed.rds"
-# #   )
-# # )
+# refSeuratObj <- readRDS(
+#   paste0(
+#     RobjDir,
+#     "GBMAtlas/Allhuman-11-3-21.rds"
+#   )
+# )
 # 
 # # gam_git_gib <- list(
 # #   Myeloid = "GAM",
@@ -285,18 +284,18 @@ dev.off()
 # # )
 # 
 # 
-# # seurat_ref_matrix <- seurat_ref(
-# #   seurat_object = refSeuratObj,
-# #   cluster_col = "Assignment"
-# # )
+# seurat_ref_matrix <- seurat_ref(
+#   seurat_object = refSeuratObj,
+#   cluster_col = "Assignment"
+# )
 # 
 # REF_MATRICES <- list(
-#   # seurat_ref_matrix,
-#   cbmc_ref
+#   # cbmc_ref,
+#   seurat_ref_matrix
 # )
 # REF_MATRICES_NAMES <- list(
-#   # "nour_myeloid",
-#   "cbmc"
+#   # "cbmc",
+#   "nour_all"
 # )
 # stopifnot(length(REF_MATRICES) == length(REF_MATRICES_NAMES))
 # 
@@ -353,6 +352,7 @@ write.csv(
     "_assignments (", analyses$which_assignment, ") .csv"
   )
 )
+
 ################# ASSIGNMENT BARPLOTS ###################
 P5 <- plot_bargraph (
   seurat_object = SeuratObj, aesX = "Sample", fill = "Assignment",
@@ -455,17 +455,17 @@ singler_assignment_plots <- list()
 for (ref_name in names(refs_singler)) {
   singler_colname <- paste0("SingleR_", ref_name)
   stopifnot(singler_colname %in% colnames(SeuratObj@meta.data))
-  
+
   # plot list
-  singler_assignment_plots[[ref_name]] <- 
+  singler_assignment_plots[[ref_name]] <-
     plot_umap(
       seurat_object = SeuratObj, group_by = singler_colname,
       reduction = paste0("umap", analyses$viz_clustering),
-      title = paste0(ref_name, " SingleR Assignment"), 
+      title = paste0(ref_name, " SingleR Assignment"),
       xlab = "UMAP1", ylab = "UMAP2",
       legend_position = "bottom",
       ncol_guide = 4,
-      label_clusters = TRUE, 
+      label_clusters = TRUE,
       label_size = 5,
       color_reverse = FALSE,
       repel_labels = TRUE
@@ -474,14 +474,14 @@ for (ref_name in names(refs_singler)) {
 
 # egg package
 singler_plots <- ggarrange(
-  singler_assignment_plots[[1]], 
+  singler_assignment_plots[[1]],
   singler_assignment_plots[[2]],
   singler_assignment_plots[[3]],
   ncol = 3
   )
 
 pdf(paste0(
-  singleRDirectory, ObjName, Subset, 
+  singleRDirectory, ObjName, Subset,
   "_resAll SingleR comparisons.pdf"
 ), width = 20, height = 7, family = FONT_FAMILY
 )
@@ -1034,7 +1034,7 @@ print(U7)
 dev.off()
 
 
-# ################### (T CELLS ONLY PSEUDOTIME SLINGSHOT ##################
+# ################### (T CELLS ONLY) PSEUDOTIME SLINGSHOT ##################
 # # figure out directory
 # SlingDir <- paste0(PseudoDirectory, "/slingshot/")
 # if (! dir.exists(SlingDir)) {
@@ -1284,4 +1284,3 @@ saveRDS(
     "_res", RESOLUTION, ".rds"
     )
 )
-

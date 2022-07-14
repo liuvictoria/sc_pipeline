@@ -1,10 +1,9 @@
 {
     "FILES": [
-      "BC_4", "BC_8", "BCL_4", "BCL_8"
     ],
     "count_matrices_dir": "sample_feature_bc_matrix",
     "ObjName": "GEX",
-    "Subset": "TPan",
+    "Subset": "TAtlas",
     "pca_features": "T",
     "pca_variable_features": 2000,
     "USE_ADT": false,
@@ -12,14 +11,13 @@
 
     "batch_norm_by": "Sample",
     "RESOLUTIONS": [
-        0.3,
-        0.35,
-        0.5,
-        0.7,
-        0.8,
-        0.9
+        0.05,
+        0.07,
+        0.1,
+        0.15,
+        0.2
     ],
-    "RESOLUTION": "All",
+    "RESOLUTION": 0.2,
 
     "aggr_cells": false,
     "aggr_FILES": [
@@ -38,13 +36,14 @@
         "CD14+ Mono",
         "CD16+ Mono",
         "CD4 T",
-        "CD8 T",
+        "CD8 Effector T",
+        "CD8 Naive T",
         "DC",
         "NK",
         "pDCs"
     ],
 
-    "preprocess_existing_atlas": false,
+    "preprocess_existing_atlas": true,
     "existing_atlas_name": "GBMAtlas/TCellClusters-11-3-21 patients renamed.rds",
     "existing_atlas_split_by": "Sample",
     "existing_atlas_use_cluster": [

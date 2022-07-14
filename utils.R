@@ -162,7 +162,7 @@ if (USE_ADT) {
 ObjName <- config$ObjName
 Subset <- config$Subset
 
-write_experimental_configs <- function(suffix = "") {
+write_experimental_configs <- function(suffix = "", code_file) {
   writeLines(
     capture.output(sessionInfo()), 
     paste0(ConfigDirectory, ObjName, "_", Subset, "_sessionInfo.txt")
@@ -188,6 +188,27 @@ write_experimental_configs <- function(suffix = "") {
   }
   file.copy(
     from = here("analysis.json"), to = analysis_params_filename
+  )
+  
+  
+  code_filename <- paste0(
+    ConfigDirectory, ObjName, "_", Subset, "_", code_file, suffix, ".R"
+  )
+  if (file.exists(code_filename)) {
+    unlink(code_filename)
+  }
+  file.copy(
+    from = here(paste0(code_file, ".R")), to = code_filename
+  )
+  
+  utils_filename <- paste0(
+    ConfigDirectory, ObjName, "_", Subset, "_utils.R"
+  )
+  if (file.exists(code_filename)) {
+    unlink(code_filename)
+  }
+  file.copy(
+    from = here("utils.R"), to = code_filename
   )
 }
 
@@ -1789,27 +1810,20 @@ GEX_cc_regression <- function(SeuratObj) {
     )
   }
   
-  # regressing is a really long process, so save for future
-  saveRDS(
-    SeuratObj, 
-    file = paste0(    
-      RobjDirectory, ObjName, Subset, 
-      "_res", config$RESOLUTION, ".rds"
-    )
-  )
   return (SeuratObj)
 }
 ######## LOUVAIN CLUSTERING (GEX) ########
 GEX_louvain <- function(
   SeuratObj, resolution,
-  reduction = "harmonyRNA"
+  reduction = "harmonyRNA",
+  reduction_dims = analyses$harmonyRNA_dims
 ) {
   DefaultAssay(SeuratObj) <- "RNA"
   
   SeuratObj <- SeuratObj %>%
     FindNeighbors(
       reduction = reduction, 
-      dims = c(1:analyses$harmonyRNA_dims)
+      dims = c(1:reduction_dims)
     ) %>%
     FindClusters(resolution = resolution)
   
@@ -1891,14 +1905,15 @@ ADT_integrate <- function(SeuratObj) {
 ####################### ADT LOUVAIN #####################
 ADT_louvain <- function(
     SeuratObj, resolution,
-    reduction = "pcaADT"
+    reduction = "pcaADT",
+    reduction_dims = analyses$pcaADT_dims
 ) {
   DefaultAssay(SeuratObj) <- "ADT"
   
   SeuratObj <- SeuratObj %>%
     FindNeighbors(
       reduction = reduction, 
-      dims = c(1:analyses$pcaADT_dims)
+      dims = c(1:reduction_dims)
     ) %>%
     FindClusters(resolution = resolution)
   
@@ -1908,16 +1923,19 @@ ADT_louvain <- function(
 
 ####################### WNN LOUVAIN #####################
 WNN_louvain <- function(
-  SeuratObj, resolution, reduction_list = list("harmonyRNA", "pcaADT"),
+  SeuratObj, resolution, 
+  reduction_list = list("harmonyRNA", "pcaADT"),
+  reduction_dim_list = list(
+    1 : analyses$harmonyRNA_dims, 
+    1 : analyses$pcaADT_dims
+    ),
   algorithm = 3, verbose = FALSE
 ) {
   print(paste0("Louvain for res", resolution))
   SeuratObj <- SeuratObj %>%
     FindMultiModalNeighbors(
       reduction.list = reduction_list, 
-      dims.list = list(
-        1 : analyses$harmonyRNA_dims, 1 : analyses$pcaADT_dims
-      )
+      dims.list = reduction_dim_list
     ) %>%
     FindClusters(
       graph.name = "wsnn",

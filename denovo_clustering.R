@@ -2,18 +2,13 @@
 source("~/Documents/victoria_liu/matching_patients/R_Code/utils.R")
 
 # capture session info, versions, etc.
-write_experimental_configs()
+write_experimental_configs(code_file = "denovo_clustering")
 
 ############# SUBSET CELLS FROM PARENT ############
-superset_assay <- ifelse (
-  USE_ADT,
-  "ADT",
-  "GEX"
-)
 # this object is fully pre-processed for GEX
 SeuratObj_filename <- paste0(
   RobjDir, analyses$denovo_superset, "/",
-  superset_assay, analyses$denovo_superset, 
+  ObjName, analyses$denovo_superset, 
   "_res", analyses$denovo_superset_resolution, ".rds"
 )
 
@@ -23,19 +18,33 @@ SeuratObj <- readRDS(SeuratObj_filename)
 
 # subset cells / remove unwanted clusters
 # unwanted clusters can be visually identified in parent UMAPs
-Idents(SeuratObj) <- analyses$denovo_subset_col
-SeuratObj <- subset(
-  SeuratObj, idents = analyses$denovo_subset
-)
+stopifnot(
+  length(analyses$denovo_subset_cols) == length(analyses$denovo_subset)
+  )
+for (idx in 1:length(analyses$denovo_subset_cols)) {
+  denovo_subset_col <- analyses$denovo_subset_cols[idx]
+  Idents(SeuratObj) <- denovo_subset_col
+  SeuratObj <- subset(
+    SeuratObj, idents = analyses$denovo_subset[[idx]]
+  )
+}
+
 for (cluster_remove in analyses$denovo_clusters_remove) {
-  if (ObjName == "GEX" & ! USE_ADT) {
+  if (ObjName == "GEX") {
     SeuratObj <- subset(
       SeuratObj, subset = ClusterRNA != cluster_remove
     )
   }
   if (USE_ADT & ObjName == "ADT") {
     SeuratObj <- subset(
-      SeuratObj, subset = ClusterADT != cluster_remove
+      SeuratObj, 
+      subset = ClusterADT != cluster_remove
+    )
+  }
+  if (USE_ADT & ObjName == "WNN") {
+    SeuratObj <- subset(
+      SeuratObj, 
+      subset = ClusterWNN != cluster_remove
     )
   }
 }
@@ -44,7 +53,7 @@ for (cluster_remove in analyses$denovo_clusters_remove) {
 SeuratObj <- GEX_normalization(SeuratObj)
 
 # includes (r)PCA for ADT
-if (USE_ADT & ObjName == "ADT") {
+if (USE_ADT & ObjName != "GEX") {
   SeuratObj <- ADT_integrate(SeuratObj)
 }
 
@@ -82,7 +91,7 @@ SeuratObj <- GEX_pca(
   paste0("Denovo ", config$Subset), 
   specific_PCA_features = T
   )
-E1 <- ElbowPlot(SeuratObj)
+E1 <- ElbowPlot(SeuratObj, ndims = 50)
 pdf(paste0(
   ElbowDirectory, ObjName, Subset, 
   " pca.pdf"
@@ -111,43 +120,21 @@ if (analyses$denovo_run_harmony) {
 }
 
 
-######## LOUVAIN CLUSTERING ########
-reduction = ifelse(
-  analyses$denovo_run_harmony, 
-  "harmonyRNA", 
+######## (GEX + ADT) RUN UMAP ########
+GEX_reduction = ifelse(
+  analyses$denovo_run_harmony,
+  "harmonyRNA",
   "pca"
-  )
-
-for (resolution in config$RESOLUTIONS) {
-  SeuratObj <- GEX_louvain(
-    SeuratObj, resolution = resolution, reduction = reduction
-  )
-}
-
-if (USE_ADT & ObjName != "RNA") {
-  # ADT
-  for (resolution in config$RESOLUTIONS) {
-    SeuratObj <- ADT_louvain(SeuratObj, resolution)
-  }
-  # WNN
-  for (resolution in config$RESOLUTIONS) {
-    SeuratObj <- WNN_louvain(SeuratObj, resolution)
-  }
-}
-# no default resolution!
-SeuratObj$seurat_clusters <- NULL
-
-
-######## RUN UMAP ########
+)
 SeuratObj <- RunUMAP(
   SeuratObj, 
-  reduction = reduction, 
+  reduction = GEX_reduction, 
   dims = c(1:analyses$denovo_pcaGEX_dims),
   reduction.name = "umapRNA",
   reduction.key = "umapRNA_"
 )
 
-if (USE_ADT & ObjName != "RNA") {
+if (USE_ADT & ObjName != "GEX") {
   # ADT
   SeuratObj <- RunUMAP(
     SeuratObj, 
@@ -156,7 +143,41 @@ if (USE_ADT & ObjName != "RNA") {
     reduction.name = "umapADT",
     reduction.key = "umapADT_"
   )
-  
+}
+
+
+
+######## LOUVAIN CLUSTERING ########
+for (resolution in config$RESOLUTIONS) {
+  SeuratObj <- GEX_louvain(
+    SeuratObj, resolution = resolution,
+    reduction = "umapRNA",
+    reduction_dims = analyses$umapRNA_dims
+  )
+}
+
+if (USE_ADT & ObjName != "GEX") {
+  # ADT
+  for (resolution in config$RESOLUTIONS) {
+    SeuratObj <- ADT_louvain(
+      SeuratObj, resolution = resolution,
+      reduction = "umapADT",
+      reduction_dims = analyses$umapADT_dims
+      )
+  }
+  # WNN
+  for (resolution in config$RESOLUTIONS) {
+    SeuratObj <- WNN_louvain(SeuratObj, resolution = resolution)
+  }
+}
+# no default resolution!
+SeuratObj$seurat_clusters <- NULL
+
+
+
+######## (WNN) RUN UMAP ######
+# for WNN, we need to run louvain before running UMAP
+if (USE_ADT & ObjName != "GEX") {
   # WNN
   SeuratObj <- RunUMAP(
     SeuratObj, 
@@ -166,12 +187,15 @@ if (USE_ADT & ObjName != "RNA") {
   )
 }
 
-
 SeuratObj@meta.data[, ] <- lapply(
   SeuratObj@meta.data, 
   function(x) type.convert(as.character(x), as.is = TRUE)
 )
 ############## SAVE SEURAT ################
+if (ObjName == "WNN") {
+  ObjName <- "ADT"
+}
+
 saveRDS(
   SeuratObj, 
   file = paste0(
@@ -180,6 +204,7 @@ saveRDS(
     )
 )
 
+# need to save this so we can load smoothly during standard_viz
 if (ObjName != "GEX") {
   saveRDS(
     SeuratObj, 
@@ -188,6 +213,5 @@ if (ObjName != "GEX") {
       "_resAll.rds"
     )
   )
-  
 }
 

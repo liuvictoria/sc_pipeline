@@ -1,35 +1,39 @@
 {
-	"pcaADT_dims": 12,
-	"harmonyRNA_dims": 12,
+	"pcaADT_dims": 11,
+	"harmonyRNA_dims": 11,
+	"umapRNA_dims": 2,
+	"umapADT_dims": 2,
 
 	"viz_clustering": "RNA",
 
-	"which_assignment": "Assignment",
+	"which_assignment": "projecTILs",
 	"clustifyr_assay": "RNApreSCT",
 	"SingleR_assay": "RNApreSCT",
 
 	"projecTILs_assay": "RNApreSCT",
 	"projecTILs_ref": "TIL",
-	"gate_projecTILs": true,
 
 	"cluster_prefix": "TC",
 	"cluster_to_assignment": {
 	},
 
-	"hue_palette": "nourpal",
-	"chromatose_subtype_by": ["blood", "tumor"],
+	"hue_palette": "chromatose",
+	"chromatose_subtype_by": ["ndGBM", "rGBM"],
 
 	"GEO": "GSE156728",
 
 	"denovo": false,
-	"denovo_lineage": "A",
+	"denovo_lineage": "T",
 	"denovo_clusters_remove":[
 	],
-	"denovo_superset": "AllImmune",
+	"denovo_superset": "TPatient",
 	"denovo_superset_resolution": 0.3,
-	"denovo_subset_col": "Assignment",
-	"denovo_subset": ["CD14+ Mono", "CD16+ Mono", "DC", "GAM"],
-	"denovo_pcaGEX_dims": 12,
+	"denovo_subset_cols": ["SingleR_Novershtern", "Group"],
+	"denovo_subset": [
+		["CD4+ T cells"],
+		["tumor"]
+	],
+	"denovo_pcaGEX_dims": 11,
 	"denovo_run_harmony": true
 
 }

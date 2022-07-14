@@ -2,7 +2,9 @@
 source("~/Documents/victoria_liu/matching_patients/R_Code/utils.R")
 
 # capture session info, versions, etc.
-write_experimental_configs(suffix = "_ADT")
+write_experimental_configs(
+  suffix = "_ADT", code_file = "ADT_preprocessing"
+  )
 
 # this object is fully pre-processed for GEX
 # it must include ADT data, but the ADT data is not yet preprocessed
@@ -75,18 +77,17 @@ dev.off()
 SeuratObj <- RenameAssays(SeuratObj, ADT = "ADTpreInt")
 SeuratObj <- ADT_integrate(SeuratObj)
 
-######## LOUVAIN CLUSTERING ########
-# ADT
-for (resolution in config$RESOLUTIONS) {
-  SeuratObj <- ADT_louvain(SeuratObj, resolution)
-}
+
+
+######## WNN LOUVAIN CLUSTERING ########
+# for WNN, we need to reun louvain before umap
 # WNN
 for (resolution in config$RESOLUTIONS) {
-  SeuratObj <- WNN_louvain(SeuratObj, resolution)
+  SeuratObj <- WNN_louvain(SeuratObj, resolution = resolution)
 }
 
-# no default resolution!
-SeuratObj$seurat_clusters <- NULL
+
+
 
 ######## RUN UMAP ########
 # ADT
@@ -107,7 +108,24 @@ SeuratObj <- RunUMAP(
   reduction.key = "UMAPWNN_"
 )
 
+######## ADT LOUVAIN CLUSTERING #########
+# ADT
+for (resolution in config$RESOLUTIONS) {
+  SeuratObj <- ADT_louvain(
+    SeuratObj, resolution = resolution,
+    reduction = "umapADT",
+    reduction_dims = analyses$umapADT_dims
+    )
+}
 
+# make sure there are no factors
+SeuratObj@meta.data[, ] <- lapply(
+  SeuratObj@meta.data, 
+  function(x) type.convert(as.character(x), as.is = TRUE)
+)
+
+# no default resolution!
+SeuratObj$seurat_clusters <- NULL
 
 ############## SAVE SEURAT AND SESSION INFO, LOOSE ENDS ################
 saveRDS(

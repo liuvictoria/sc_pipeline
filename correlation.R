@@ -1,6 +1,11 @@
 ################# LOAD UTILS ##############
 source("~/Documents/victoria_liu/matching_patients/R_Code/utils.R")
 
+# capture session info, versions, etc.
+write_experimental_configs(
+  code_file = "correlation"
+)
+
 ################# RUN ONCE ##################
 # seurat_atlas_all <- preprocess_atlas_objects_corr(
 #   paste0(RobjDir, "GBMAtlas/", "Allhuman-11-3-21.rds"),
@@ -191,21 +196,3 @@ for (correlation_with in T_correlation_with) {
     }
   }
 }
-
-############## SAVE SESSION INFO, LOOSE ENDS ################
-
-# capture session info, versions, etc.
-writeLines(
-  capture.output(sessionInfo()), 
-  paste0(ConfigDirectory, ObjName, "_", Subset, "_sessionInfo.txt")
-)
-file.copy(
-  from = here("config.json"), 
-  to = paste0(ConfigDirectory, ObjName, "_", Subset, "_config_params.json")
-)
-file.copy(
-  from = here("analysis.json"), 
-  to = paste0(ConfigDirectory, ObjName, "_", Subset, "_analysis_params.json")
-)
-
-# quit(save = "no")
