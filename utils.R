@@ -204,11 +204,11 @@ write_experimental_configs <- function(suffix = "", code_file) {
   utils_filename <- paste0(
     ConfigDirectory, ObjName, "_", Subset, "_utils.R"
   )
-  if (file.exists(code_filename)) {
-    unlink(code_filename)
+  if (file.exists(utils_filename)) {
+    unlink(utils_filename)
   }
   file.copy(
-    from = here("utils.R"), to = code_filename
+    from = here("utils.R"), to = utils_filename
   )
 }
 
@@ -1814,10 +1814,20 @@ GEX_cc_regression <- function(SeuratObj) {
 }
 ######## LOUVAIN CLUSTERING (GEX) ########
 GEX_louvain <- function(
-  SeuratObj, resolution,
-  reduction = "harmonyRNA",
-  reduction_dims = analyses$harmonyRNA_dims
+  SeuratObj, resolution
 ) {
+  # different clustering methods
+  # umap clustering leads to less "outlier cells", more clusters
+  # harmonyRNA leads to more meaningful clusters in certain cases
+  # define the method in analyses.json file
+  if (analyses$GEX_louvain_method == "umap") {
+    reduction = "umapRNA"
+    reduction_dims = analyses$umapRNA_dims
+  } else if (analyses$GEX_louvain_method == "harmony") { 
+    reduction = "harmonyRNA"
+    reduction_dims = analyses$harmonyRNA_dims
+  }
+  
   DefaultAssay(SeuratObj) <- "RNA"
   
   SeuratObj <- SeuratObj %>%
@@ -1904,10 +1914,20 @@ ADT_integrate <- function(SeuratObj) {
   
 ####################### ADT LOUVAIN #####################
 ADT_louvain <- function(
-    SeuratObj, resolution,
-    reduction = "pcaADT",
-    reduction_dims = analyses$pcaADT_dims
+    SeuratObj, resolution
 ) {
+  # different clustering methods
+  # umap clustering leads to less "outlier cells", more clusters
+  # harmonyRNA leads to more meaningful clusters in certain cases
+  # define the method in analyses.json file
+  if (analyses$ADT_louvain_method == "umap") {
+    reduction = "umapADT"
+    reduction_dims = analyses$umapADT_dims
+  } else if (analyses$ADT_louvain_method == "pca") {
+    reduction = "pcaADT"
+    reduction_dims = analyses$pcaADT_dims
+  }
+
   DefaultAssay(SeuratObj) <- "ADT"
   
   SeuratObj <- SeuratObj %>%
@@ -1923,14 +1943,34 @@ ADT_louvain <- function(
 
 ####################### WNN LOUVAIN #####################
 WNN_louvain <- function(
-  SeuratObj, resolution, 
-  reduction_list = list("harmonyRNA", "pcaADT"),
-  reduction_dim_list = list(
-    1 : analyses$harmonyRNA_dims, 
-    1 : analyses$pcaADT_dims
-    ),
+  SeuratObj, resolution,
   algorithm = 3, verbose = FALSE
 ) {
+  
+  # figure out if we're doing umap or pca/harmony
+  if (analyses$GEX_louvain_method == "umap") {
+    GEX_reduction = "umapRNA"
+    GEX_reduction_dims = analyses$umapRNA_dims
+  } else if (analyses$GEX_louvain_method == "harmony") { 
+    GEX_reduction = "harmonyRNA"
+    GEX_reduction_dims = analyses$harmonyRNA_dims
+  }
+  
+  if (analyses$ADT_louvain_method == "umap") {
+    ADT_reduction = "umapADT"
+    ADT_reduction_dims = analyses$umapADT_dims
+  } else if (analyses$ADT_louvain_method == "pca") {
+    ADT_reduction = "pcaADT"
+    ADT_reduction_dims = analyses$pcaADT_dims
+  }
+  
+  # define reduction list and reduction dim list for WNN
+  reduction_list <- list(GEX_reduction, ADT_reduction)
+  reduction_dim_list <- list(
+    1 : GEX_reduction_dims,
+    1 : ADT_reduction_dims
+  )
+  
   print(paste0("Louvain for res", resolution))
   SeuratObj <- SeuratObj %>%
     FindMultiModalNeighbors(

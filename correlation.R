@@ -41,7 +41,7 @@ stopifnot (group == "ndGBM" | group == "rGBM" | group == "Atlas")
 seurat_T_all <- preprocess_atlas_objects_corr(
   paste0(
     RobjDir, "T", group, "/", 
-    "GEXT", group, "_resAll.rds"
+    "GEXT", group, "_res", analyses$correlation_T_resolution, ".rds"
     ),
   paste0(group, "_fragment_T"),
   flip_patient_sample = F
@@ -61,8 +61,7 @@ normalizations <- c("fragment_all", "fragment_subtype", "none")
 # T cell subset
 seurat_T <- subset(
   seurat_T_all,
-  subset = Sample == population |
-    TumorType == population
+  subset = TumorType == population
 )
 seurat_T$Cluster <- seurat_T$Assignment
 
@@ -86,8 +85,7 @@ for (correlation_with in T_correlation_with) {
   # figure out patient subset
   seurat_correlation_with_subset <- subset(
     seurat_correlation_with,
-    subset = Sample == population |
-      TumorType == population
+    subset = TumorType == population
   )
   
   # merge objects
@@ -120,8 +118,8 @@ for (correlation_with in T_correlation_with) {
       sort(unique(seurat_correlation_with_subset@meta.data[[assignment_type]])), 
       sort(unique(seurat_T@meta.data[[assignment_type]]))
     )
-    # CD4 naive cells have too few counts
-    col_order <- col_order[!is.na(col_order) & col_order != "CD4_NaiveLike"]
+    # # CD4 naive cells have too few counts
+    # col_order <- col_order[!is.na(col_order) & col_order != "CD4_NaiveLike"]
     my_data <- my_data[, col_order]
     
     for (normalization in normalizations) {

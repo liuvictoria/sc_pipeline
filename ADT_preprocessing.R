@@ -27,6 +27,8 @@ SeuratObj <- readRDS(
   RDS_filename
 )
 
+SeuratObj$GEX_Assignment <- temp$Assignment
+
 ######## QC PLOTS ########
 
 x5 <- plot_densitygraph (
@@ -112,9 +114,7 @@ SeuratObj <- RunUMAP(
 # ADT
 for (resolution in config$RESOLUTIONS) {
   SeuratObj <- ADT_louvain(
-    SeuratObj, resolution = resolution,
-    reduction = "umapADT",
-    reduction_dims = analyses$umapADT_dims
+    SeuratObj, resolution = resolution
     )
 }
 

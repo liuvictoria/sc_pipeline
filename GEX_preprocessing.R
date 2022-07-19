@@ -7,6 +7,7 @@ write_experimental_configs(
   )
 
 
+
 ######### QC + Doublet removal ########
 SeuratSamples <- list()
 if (!config$aggr_cells & !config$preprocess_existing_atlas) {
@@ -314,9 +315,7 @@ SeuratObj <- RunUMAP(
 ######## LOUVAIN CLUSTERING (GEX) ########
 for (resolution in config$RESOLUTIONS) {
   SeuratObj <- GEX_louvain(
-    SeuratObj, resolution = resolution,
-    reduction = "umapRNA",
-    reduction_dims = analyses$umapRNA_dims
+    SeuratObj, resolution = resolution
   )
 }
 # make sure there are no factors
@@ -334,7 +333,7 @@ SeuratObj$seurat_clusters <- NULL
 ############### VALIDATION VISUALIZATION ##############
 U1 <- plot_umap(
   seurat_object = SeuratObj, 
-  group_by = "RNA_snn_res.0.15",
+  group_by = "RNA_snn_res.0.1",
   reduction = paste0("umapRNA"),
   title = "Clusters", xlab = "UMAP1", ylab = "UMAP2",
   legend_position = "bottom",

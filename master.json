@@ -105,16 +105,31 @@
 
 
 	"T_lineage_markers": {
+		"CD8+": ["Cd8a", "Cd8B", "Gzma", "Gzmb", "GZMH", "S100B"],
+		"CD4+": ["Cd4", "IL7R", "ITM2A", "TXNIP"],
+		"Exhaustion": [
+			"LAG3", "PDCD1", "TIGIT", "Ctla4",  "CD44", "TNFRSF4",
+			"TNFRSF8", "ENTPD1"],
+		"Exhaustion PanT" : [
+			"TNFRSF9", "TOX", "IFNG", "GZMB", "MYO1E",
+			"MYO7A", "TCF7", "CD200", "GNG4", "IGFBP4", "IGFL2", "CCR7", "SELL"
+		],
+		"Treg": [
+			"Tigit", "Ctla4", "Foxp3", "Il2ra", "SELL", "TOP1", "IGF2R",
+			"IFNAR2", "IL15RA", "TGIF2", "HIVEP1"
+		],
+		"Tfh": [
+			"Cd4", "CXCR5", "CXCR3", "PDCD1", "BCL6", "STAT3", "ICOS", "BATF3"
+		],
+		"Th1": [
+			"CXCR3", "CCR5", "IFNG"
+		],
+		"NK": ["Nkg7", "Klrd1", "CST7", "Gzma", "Gzmb", "Itgam", "GNLY"],
 		"Yun markers": [
 			"IFNG", "TOX", "TOX2", "CD69", "ENTPD1", "ITGAE", "TGFB1", "IL4",
 			"TNF", "IL13", "IL17A", "IL22", "IL21", "CCR7", "CD28", "B3GAT1"
 		],
 		"All lineages": ["Ifng", "CD247", "NCAM1", "Ptprc", "Cd3e", "Cd3g"],
-		"Exhaustion": ["LAG3", "PDCD1", "TIGIT", "Ctla4",  "CD44", "TNFRSF4", "TNFRSF8", "ENTPD1"],
-		"NK": ["Nkg7", "Klrd1", "CST7", "Gzma", "Gzmb", "Itgam", "GNLY"],
-		"CD8+": ["Cd8a", "Cd8B", "Gzma", "Gzmb", "GZMH", "S100B"],
-		"CD4+": ["Cd4", "IL7R", "ITM2A", "TXNIP"],
-		"Treg": ["Tigit", "Ctla4", "Foxp3", "Il2ra"],
 		"Memory": ["Il2ra", "S100a4"],
 		"Naive": ["Ccr7", "Tcf7"],
 		"Memory CD4+": ["CD4", "PTGDR2", "CD200R1"],
@@ -123,9 +138,6 @@
 	},
 
 	"M_lineage_markers": {
-		"Huntoon markers": [
-			"ENPP1"
-		],
 		"BMDM": ["Ptprc", "Itgam", "Itgax", "Cd74", "Cd68", "S100a8", "S100a9"],
 
 		"Macrophage": ["Itgam", "Lyz", "cd68", "CD163", "MSR1", "MRC1", "ITGA4"],
@@ -142,30 +154,73 @@
 		"iMic": ["CCL3", "CCL4", "CCL4L2", "CD83", "TNF", "IL1B", "NFKBIZ"],
 		"hMic": ["CST3"],
 		"APMic": ["CX3CR1", "CD86", "IFNGR1", "TGFB1", "B2M"],
-		"aMic": ["SPRY1"]
+		"aMic": ["SPRY1"],
+
+		"Neutrophil": [
+			"TNFSF13B", "CXCL8", "FTH1", "CXCL16", "CST3", "LYZ", "FCGR3B", "CSF3R"
+		],
+		"Neutrophil mature blood low markers": [
+			"Lin", "CD115", "SiglecF", "cKit", "CXCR4"
+		],
+		"Neutrophil mature blood high markers": [
+			"CD11b", "Gr1", "Ly6G", "CXCR2", "CD66b"
+		],
+		"Neutrophil IL1B": [
+			"IL1B", "CXCL8", "C5AR1", "NAMPT", "SRGN", "AQP9"
+		],
+		"Neutrophil CXCR4 low": [
+			"CXCR4", "EGR1", "NAMPT", "SOD2", "SAT1", "S100A8"
+		],
+		"Neutrophil CST7": [
+			"CST7", "S100A4", "MMP9", "MMP25", "PYGL", "VNN2", "SRGN"
+		],
+		"Neutrophil RSAD2": [
+			"RSAD2", "IFITM1", "IFITM3", "AXL", "IFIT2", "SRGN", "FTH1"
+		],
+		"Neutrophil GSTP1high OASLlow": [
+			"GSTP1", "IFI6", "PTMA", "OASL", "IFI6", "ISG15", "NCF1", "LAP3"
+		],
+		"Neutrophil FGF23": [
+			"FGF23", "AL035078.1", "S100A4", "NAMPT", "SRGN", "FTH1", "CXCL8"
+		],
+		"Huntoon markers": [
+			"ENPP1"
+		]
 	},
 
 	"A_lineage_markers": {
-		"Yun markers": [
-			"IFNG", "TOX", "TOX2", "CD69", "ENTPD1", "ITGAE", "TGFB1", "IL4",
-			"TNF", "IL13", "IL17A", "IL22", "IL21", "CCR7", "CD28", "B3GAT1",
-			"SOX2", "ACTA2"
-		],
-		"All lineages": ["Ifng", "CD247", "NCAM1", "Ptprc", "Cd3e", "Cd3g"],
-		"Exhaustion": ["LAG3", "PDCD1", "TIGIT", "Ctla4",  "CD44", "TNFRSF4", "TNFRSF8", "ENTPD1"],
-		"NK": ["Nkg7", "Klrd1", "CST7", "Gzma", "Gzmb", "Itgam", "GNLY"],
 		"CD8+": ["Cd8a", "Cd8B", "Gzma", "Gzmb", "GZMH", "S100B"],
 		"CD4+": ["Cd4", "IL7R", "ITM2A", "TXNIP"],
-		"Treg": ["Tigit", "Ctla4", "Foxp3", "Il2ra"],
+		"Exhaustion": [
+			"LAG3", "PDCD1", "TIGIT", "Ctla4",  "CD44", "TNFRSF4",
+			"TNFRSF8", "ENTPD1"],
+		"Exhaustion PanT" : [
+			"TNFRSF9", "TOX", "IFNG", "GZMB", "MYO1E",
+			"MYO7A", "TCF7", "CD200", "GNG4", "IGFBP4", "IGFL2", "CCR7", "SELL"
+		],
+		"Treg": [
+			"Tigit", "Ctla4", "Foxp3", "Il2ra", "SELL", "TOP1", "IGF2R",
+			"IFNAR2", "IL15RA", "TGIF2", "HIVEP1"
+		],
+		"Tfh": [
+			"Cd4", "CXCR5", "CXCR3", "PDCD1", "BCL6", "STAT3", "ICOS", "BATF3"
+		],
+		"Th1": [
+			"CXCR3", "CCR5", "IFNG"
+		],
+		"NK": ["Nkg7", "Klrd1", "CST7", "Gzma", "Gzmb", "Itgam", "GNLY"],
+		"Yun markers": [
+			"IFNG", "TOX", "TOX2", "CD69", "ENTPD1", "ITGAE", "TGFB1", "IL4",
+			"TNF", "IL13", "IL17A", "IL22", "IL21", "CCR7", "CD28", "B3GAT1"
+		],
+		"All lineages": ["Ifng", "CD247", "NCAM1", "Ptprc", "Cd3e", "Cd3g"],
 		"Memory": ["Il2ra", "S100a4"],
 		"Naive": ["Ccr7", "Tcf7"],
 		"Memory CD4+": ["CD4", "PTGDR2", "CD200R1"],
 		"Naive CD4+": ["CD4", "CDHR3", "DICER1-AS1", "RAD9A"],
 		"B": ["CD79A", "CD19", "CD27"],
 
-		"Huntoon markers": [
-			"ENPP1"
-		],
+
 		"BMDM": ["Ptprc", "Itgam", "Itgax", "Cd74", "Cd68", "S100a8", "S100a9"],
 
 		"Macrophage": ["Itgam", "Lyz", "cd68", "CD163", "MSR1", "MRC1", "ITGA4"],
@@ -182,7 +237,44 @@
 		"iMic": ["CCL3", "CCL4", "CCL4L2", "CD83", "TNF", "IL1B", "NFKBIZ"],
 		"hMic": ["CST3"],
 		"APMic": ["CX3CR1", "CD86", "IFNGR1", "TGFB1", "B2M"],
-		"aMic": ["SPRY1"]
+		"aMic": ["SPRY1"],
+
+		"Neutrophil": [
+			"TNFSF13B", "CXCL8", "FTH1", "CXCL16", "CST3", "LYZ", "FCGR3B", "CSF3R"
+		],
+		"Neutrophil mature blood low markers": [
+			"Lin", "CD115", "SiglecF", "cKit", "CXCR4"
+		],
+		"Neutrophil mature blood high markers": [
+			"CD11b", "Gr1", "Ly6G", "CXCR2", "CD66b"
+		],
+		"Neutrophil IL1B": [
+			"IL1B", "CXCL8", "C5AR1", "NAMPT", "SRGN", "AQP9"
+		],
+		"Neutrophil CXCR4 low": [
+			"CXCR4", "EGR1", "NAMPT", "SOD2", "SAT1", "S100A8"
+		],
+		"Neutrophil CST7": [
+			"CST7", "S100A4", "MMP9", "MMP25", "PYGL", "VNN2", "SRGN"
+		],
+		"Neutrophil RSAD2": [
+			"RSAD2", "IFITM1", "IFITM3", "AXL", "IFIT2", "SRGN", "FTH1"
+		],
+		"Neutrophil GSTP1high OASLlow": [
+			"GSTP1", "IFI6", "PTMA", "OASL", "IFI6", "ISG15", "NCF1", "LAP3"
+		],
+		"Neutrophil FGF23": [
+			"FGF23", "AL035078.1", "S100A4", "NAMPT", "SRGN", "FTH1", "CXCL8"
+		],
+		"Huntoon markers": [
+			"ENPP1"
+		],
+		"Glioma": [
+			"PDGFRA", "SOX2", "OLIG1", "NES", "GFAP", "S100B", "EGFR", "MBP", "PDGFRB"
+		],
+		"Brain stroma": [
+			"MBP", "PDGFRB", "ACTA2", "PROM1", "PECAM1", "TEK", "P2RY12", "PTPRC", "ITGAM"
+		]
 	},
 
 	"None_lineage_markers": {

@@ -251,63 +251,63 @@ print(U3)
 dev.off()
 
 
-# ################# (CUSTOM) CELL POPULATION: CLUSTIFYR ###################
+################# (CUSTOM) CELL POPULATION: CLUSTIFYR ###################
 # refSeuratObj <- readRDS(
 #   paste0(
 #     RobjDir,
 #     "GBMAtlas/Allhuman-11-3-21.rds"
 #   )
 # )
-# 
-# # gam_git_gib <- list(
-# #   Myeloid = "GAM",
-# #   TCells = "GIT",
-# #   BCells = "GIB"
-# # )
-# #
-# # CellInfo <- refSeuratObj@meta.data
-# # for (i in 1:length(gam_git_gib)) {
-# #   CellInfo$Assignment[
-# #     which(str_detect(refSeuratObj$Assignment, names(gam_git_gib[i])))
-# #   ] <- gam_git_gib[[i]]
-# # }
-# #
-# # refSeuratObj$Assignment <- CellInfo$Assignment
-# #
-# # saveRDS(
-# #   refSeuratObj,
-# #   file = paste0(
-# #     RobjDir,
-# #     "GBMAtlas/",
-# #     "Allhuman-11-3-21.rds"
-# #   )
-# # )
-# 
-# 
+
+# gam_git_gib <- list(
+#   Myeloid = "GAM",
+#   TCells = "GIT",
+#   BCells = "GIB"
+# )
+#
+# CellInfo <- refSeuratObj@meta.data
+# for (i in 1:length(gam_git_gib)) {
+#   CellInfo$Assignment[
+#     which(str_detect(refSeuratObj$Assignment, names(gam_git_gib[i])))
+#   ] <- gam_git_gib[[i]]
+# }
+#
+# refSeuratObj$Assignment <- CellInfo$Assignment
+#
+# saveRDS(
+#   refSeuratObj,
+#   file = paste0(
+#     RobjDir,
+#     "GBMAtlas/",
+#     "Allhuman-11-3-21.rds"
+#   )
+# )
+
+
 # seurat_ref_matrix <- seurat_ref(
 #   seurat_object = refSeuratObj,
 #   cluster_col = "Assignment"
 # )
-# 
-# REF_MATRICES <- list(
-#   # cbmc_ref,
-#   seurat_ref_matrix
-# )
-# REF_MATRICES_NAMES <- list(
-#   # "cbmc",
-#   "nour_all"
-# )
-# stopifnot(length(REF_MATRICES) == length(REF_MATRICES_NAMES))
-# 
-# for (idx in 1:length(REF_MATRICES)) {
-#   REF_MATRIX <- REF_MATRICES[[idx]]
-#   REF_MATRIX_NAME <- REF_MATRICES_NAMES[idx]
-#   clustifyr_colname <- paste0("clustifyr_", REF_MATRIX_NAME)
-# 
-#   SeuratObj <- clustifyr_wrapper(SeuratObj, REF_MATRIX, clustifyr_colname)
-# 
-# }
-# 
+
+REF_MATRICES <- list(
+  cbmc_ref
+  # seurat_ref_matrix
+)
+REF_MATRICES_NAMES <- list(
+  "cbmc"
+  # "nour_all"
+)
+stopifnot(length(REF_MATRICES) == length(REF_MATRICES_NAMES))
+
+for (idx in 1:length(REF_MATRICES)) {
+  REF_MATRIX <- REF_MATRICES[[idx]]
+  REF_MATRIX_NAME <- REF_MATRICES_NAMES[idx]
+  clustifyr_colname <- paste0("clustifyr_", REF_MATRIX_NAME)
+
+  SeuratObj <- clustifyr_wrapper(SeuratObj, REF_MATRIX, clustifyr_colname)
+
+}
+
 
 ################# (CUSTOM) MANUAL CELL ASSIGNMENT ###############
 # add desired automated assignment to Assignment column
@@ -609,7 +609,7 @@ pdf(paste0(
   analyses[["denovo_lineage"]],
   ".pdf"
 ),
-width = 10,
+width = 12,
 height = 8,
 family = FONT_FAMILY
 )
@@ -1019,20 +1019,41 @@ U7 <- plot_umap (
   seurat_object = SeuratObj, group_by = "Phase",
   reduction = paste0("umap", analyses$viz_clustering),
   title = "Seurat Cell Cycle scoring", xlab = "UMAP1", ylab = "UMAP2",
-  legend_position = "right",
+  legend_position = "bottom",
+  ncol_guide = 3,
   title_font_size = 16, x_font_size = 16, y_font_size = 16, 
-  pt_size = 0.2, split_by = "Sample", ncol_dimplot = 2,
+  pt_size = 0.2,
+  label_clusters = TRUE, repel_labels = TRUE, label_size = 3,
+  shuffle = TRUE
+)
+
+
+pdf(paste0(
+  UMAPDirectory, ObjName, Subset, 
+  "CellCycle UMAP.pdf"
+), width = 8, height = 7, family = FONT_FAMILY
+)
+print(U7)
+dev.off()
+
+U8 <- plot_umap (
+  seurat_object = SeuratObj, group_by = "Phase",
+  reduction = paste0("umap", analyses$viz_clustering),
+  title = "Seurat Cell Cycle scoring", xlab = "UMAP1", ylab = "UMAP2",
+  legend_position = "right", split_by = "Sample",
+  title_font_size = 16, x_font_size = 16, y_font_size = 16, 
+  pt_size = 0.2, ncol_dimplot = 2,
   label_clusters = TRUE, repel_labels = TRUE, label_size = 3
 )
+
 
 pdf(paste0(
   UMAPDirectory, ObjName, Subset, 
   "CellCycle UMAP by Iteration Sample.pdf"
 ), width = 12, height = 2.5 * length(unique(SeuratObj$Sample)), family = FONT_FAMILY
 )
-print(U7)
+print(U8)
 dev.off()
-
 
 # ################### (T CELLS ONLY) PSEUDOTIME SLINGSHOT ##################
 # # figure out directory
@@ -1284,3 +1305,4 @@ saveRDS(
     "_res", RESOLUTION, ".rds"
     )
 )
+temp <- SeuratObj

@@ -129,7 +129,7 @@ GEX_reduction = ifelse(
 SeuratObj <- RunUMAP(
   SeuratObj, 
   reduction = GEX_reduction, 
-  dims = c(1:analyses$denovo_pcaGEX_dims),
+  dims = c(1:analyses$harmonyRNA_dims),
   reduction.name = "umapRNA",
   reduction.key = "umapRNA_"
 )
@@ -150,9 +150,7 @@ if (USE_ADT & ObjName != "GEX") {
 ######## LOUVAIN CLUSTERING ########
 for (resolution in config$RESOLUTIONS) {
   SeuratObj <- GEX_louvain(
-    SeuratObj, resolution = resolution,
-    reduction = "umapRNA",
-    reduction_dims = analyses$umapRNA_dims
+    SeuratObj, resolution = resolution
   )
 }
 
@@ -160,9 +158,7 @@ if (USE_ADT & ObjName != "GEX") {
   # ADT
   for (resolution in config$RESOLUTIONS) {
     SeuratObj <- ADT_louvain(
-      SeuratObj, resolution = resolution,
-      reduction = "umapADT",
-      reduction_dims = analyses$umapADT_dims
+      SeuratObj, resolution = resolution
       )
   }
   # WNN
