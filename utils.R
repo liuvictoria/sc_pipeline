@@ -101,11 +101,11 @@ MyPackages <- c(
   "dplyr", "ggplot2", "ggpubr", "gridExtra", "viridis", "egg",
   "grid", "lattice", "gtools", "Biobase", "RColorBrewer", "tibble",
   "Seurat", "cowplot", "patchwork", "stringr", "ComplexHeatmap", 
-  "SingleCellExperiment", "ggmin", "Nourpal", "Cairo",
+  "SingleCellExperiment", "ggmin", "Cairo",#, "Nourpal"
   "harmony", "magick", "viridis", "limma", 
   "glmGamPoi", "rjson", "here", "SeuratDisk",
   "gplots", "clustifyr", "fgsea", "purrr", "clustree",
-  "SingleR", "celldex", "ProjecTILs", "biomaRt", "data.table",
+  "SingleR", "celldex", "biomaRt", "data.table",#, "ProjecTILs"
   "umap", "pheatmap", "scDblFinder", "miQC", "SeuratWrappers",
   "PerformanceAnalytics", "corrplot", "GEOquery",
   "slingshot", "ggbeeswarm", "monocle3", "extrafont",
