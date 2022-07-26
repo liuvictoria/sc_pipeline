@@ -1,5 +1,5 @@
 ################# LOAD UTILS  ##############
-source("utils.R")
+source("C:/Users/alizae/MyFiles/GBM/matching_patients/R_Code/sc_pipeline/utils.R")
 
 # capture session info, versions, etc.
 write_experimental_configs(
