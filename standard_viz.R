@@ -122,7 +122,7 @@ if (analyses$viz_clustering == "RNA") {
 # RNA only
 if (analyses$viz_clustering != "ADT") {
   heatmap_wrapper(SeuratObj, markersRNA, "RNA")
-} 
+}
 
 
 
@@ -283,7 +283,7 @@ dev.off()
 #   )
 # )
 
-
+# 
 # seurat_ref_matrix <- seurat_ref(
 #   seurat_object = refSeuratObj,
 #   cluster_col = "Assignment"
@@ -295,7 +295,7 @@ REF_MATRICES <- list(
 )
 REF_MATRICES_NAMES <- list(
   "cbmc"
-  # "nour_all"
+  # "nour_myeloid"
 )
 stopifnot(length(REF_MATRICES) == length(REF_MATRICES_NAMES))
 
@@ -609,7 +609,7 @@ pdf(paste0(
   analyses[["denovo_lineage"]],
   ".pdf"
 ),
-width = 12,
+width = 20,
 height = 8,
 family = FONT_FAMILY
 )
@@ -719,7 +719,6 @@ for (cluster_name in names(Clusterspecificgenes)) {
     )
     
     if (length(gene) == 1) {
-      print(gene)
       gene <- gene[[1]]
       F1 <- plot_featureplot (
         seurat_object = SeuratObj,
@@ -911,7 +910,7 @@ dev.off()
 V1 <- VlnPlot(
   SeuratObj, 
   features = "ribo_ratio", 
-  pt.size = 0.01, 
+  pt.size = 0, 
   cols = get_colors(
     seurat_object = SeuratObj, 
     color_by = paste0("Cluster", analyses$viz_clustering)
@@ -923,7 +922,7 @@ V1 <- VlnPlot(
 V2 <- VlnPlot(
   SeuratObj, 
   features = "ribo_ratio", 
-  pt.size = 0.01, 
+  pt.size = 0, 
   cols = get_colors(
     seurat_object = SeuratObj, 
     color_by = "Assignment"
@@ -935,7 +934,7 @@ V2 <- VlnPlot(
 V3 <- VlnPlot(
   SeuratObj, 
   features = "ribo_ratio", 
-  pt.size = 0.01, 
+  pt.size = 0, 
   cols = get_colors(
     seurat_object = SeuratObj, 
     color_by = "Sample"
@@ -1023,7 +1022,7 @@ U7 <- plot_umap (
   ncol_guide = 3,
   title_font_size = 16, x_font_size = 16, y_font_size = 16, 
   pt_size = 0.2,
-  label_clusters = TRUE, repel_labels = TRUE, label_size = 3,
+  label_clusters = TRUE, repel_labels = TRUE, label_size = 5,
   shuffle = TRUE
 )
 
@@ -1043,7 +1042,7 @@ U8 <- plot_umap (
   legend_position = "right", split_by = "Sample",
   title_font_size = 16, x_font_size = 16, y_font_size = 16, 
   pt_size = 0.2, ncol_dimplot = 2,
-  label_clusters = TRUE, repel_labels = TRUE, label_size = 3
+  label_clusters = TRUE, repel_labels = TRUE, label_size = 5
 )
 
 
@@ -1305,4 +1304,3 @@ saveRDS(
     "_res", RESOLUTION, ".rds"
     )
 )
-temp <- SeuratObj

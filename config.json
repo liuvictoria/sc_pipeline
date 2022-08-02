@@ -1,13 +1,13 @@
 {
     "FILES": [
-      "MYSC70", "MYSC96", "MYSC98"
+      "MYSC70", "MYSC96", "MYSC98", "MYSC85"
     ],
     "count_matrices_dir": "sample_feature_bc_matrix",
     "ObjName": "GEX",
     "Subset": "AllTumor",
     "pca_features": "variable",
     "pca_variable_features": 2000,
-    "USE_ADT": true,
+    "USE_ADT": false,
     "SCT": true,
 
     "batch_norm_by": "Sample",
@@ -19,7 +19,7 @@
         0.3,
         0.4
     ],
-    "RESOLUTION": 0.1,
+    "RESOLUTION": "All",
 
     "aggr_cells": false,
     "aggr_FILES": [

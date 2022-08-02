@@ -18,19 +18,6 @@
 
 	"cluster_prefix": "C",
 	"cluster_to_assignment": {
-		"01": "Glioma",
-		"02": "Glioma",
-		"03": "GAM",
-		"04": "Glioma",
-		"05": "GAM",
-		"06": "GAM",
-		"07": "Oligo",
-		"08": "GAM",
-		"09": "Glioma",
-		"10": "GIT",
-		"11": "Glioma",
-		"12": "Endo",
-		"13": "Glioma"
 	},
 
 	"hue_palette": "nourpal",

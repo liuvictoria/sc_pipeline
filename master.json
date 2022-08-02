@@ -7,7 +7,11 @@
 		"MYSC95": "GBM-30_blood",
 		"MYSC96": "GBM-30_tumor",
 		"MYSC97": "GBM-31_blood",
-		"MYSC98": "GBM-31_tumor"
+		"MYSC98": "GBM-31_tumor",
+		"MYSC85": "GBM-14_tumor",
+		"MYSC86": "GBM-14_blood",
+		"MYSC87": "GBM-15_tumor",
+		"MYSC88": "GBM-15_blood"
 	},
 	"group_info": {
 		"ESC8" : "blood",
@@ -16,17 +20,25 @@
 		"MYSC71": "blood",
 		"MYSC96": "tumor",
 		"MYSC97": "blood",
-		"MYSC98": "tumor"
+		"MYSC98": "tumor",
+		"MYSC85": "tumor",
+		"MYSC86": "blood",
+		"MYSC87": "tumor",
+		"MYSC88": "blood"
 	},
 	"patient_info": {
 		"ESC8" : "CONTROL-01",
 		"ESC9" : "CONTROL-01",
-		"MYSC70": "ndGBM-05",
-		"MYSC71": "ndGBM-05",
-		"MYSC95": "rGBM-06",
-		"MYSC96": "rGBM-06",
-		"MYSC97": "rGBM-07",
-		"MYSC98": "rGBM-07"
+		"MYSC70": "ndGBM-01",
+		"MYSC71": "ndGBM-01",
+		"MYSC95": "rGBM-01",
+		"MYSC96": "rGBM-01",
+		"MYSC97": "rGBM-02",
+		"MYSC98": "rGBM-02",
+		"MYSC85": "ndGBM-02",
+		"MYSC86": "ndGBM-02",
+		"MYSC87": "LGG-01",
+		"MYSC88": "LGG-01"
 	},
 	"sex_info": {
 		"ESC8" : "NA",
@@ -36,7 +48,11 @@
 		"MYSC95": "Female",
 		"MYSC96": "Female",
 		"MYSC97": "Female",
-		"MYSC98": "Female"
+		"MYSC98": "Female",
+		"MYSC85": "Female",
+		"MYSC86": "Female",
+		"MYSC87": "Female",
+		"MYSC88": "Female"
 	},
 	"type_info": {
 		"ESC8" : "NA",
@@ -46,7 +62,11 @@
 		"MYSC95": "Recurrent GBM",
 		"MYSC96": "Recurrent GBM",
 		"MYSC97": "Recurrent GBM",
-		"MYSC98": "Recurrent GBM"
+		"MYSC98": "Recurrent GBM",
+		"MYSC85": "GBM",
+		"MYSC86": "GBM",
+		"MYSC87": "LGG",
+		"MYSC88": "LGG"
 	},
 	"grade_info": {
 		"ESC8" : "NA",
@@ -56,7 +76,11 @@
 		"MYSC95": "IV",
 		"MYSC96": "IV",
 		"MYSC97": "IV",
-		"MYSC98": "IV"
+		"MYSC98": "IV",
+		"MYSC85": "IV",
+		"MYSC86": "IV",
+		"MYSC87": "II",
+		"MYSC88": "II"
 	},
 
 
@@ -69,7 +93,11 @@
 		"MYSC95": true,
 		"MYSC96": true,
 		"MYSC97": true,
-		"MYSC98": true
+		"MYSC98": true,
+		"MYSC85": false,
+		"MYSC86": false,
+		"MYSC87": false,
+		"MYSC88": false
 	},
 
 	"metadata_merger_keep" : [
@@ -189,6 +217,12 @@
 	},
 
 	"A_lineage_markers": {
+		"Figure 1b All PBMC": [
+			"IFNG", "TOX", "TOX2", "CD69", "ENTPD1", "ITGAE", "TGFB1", "IL4",
+			"TNF", "IL13", "IL17A", "IL22", "IL21", "CCR7", "CD28", "B3GAT1",
+			"Ptprc", "Itgam", "Itgax", "Cd74", "Cd68", "S100a8", "S100a9",
+			"Ifng", "CD247", "NCAM1", "Ptprc", "Cd3e", "Cd3g"
+		],
 		"CD8+": ["Cd8a", "Cd8B", "Gzma", "Gzmb", "GZMH", "S100B"],
 		"CD4+": ["Cd4", "IL7R", "ITM2A", "TXNIP"],
 		"Exhaustion": [
