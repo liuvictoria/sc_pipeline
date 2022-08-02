@@ -3,7 +3,7 @@
 # none of this code is particularly reusable, except for its specific use case
 ################# LOAD UTILS ##############
 # this is run locally and requires SeuratWrapper package
-source("~/hpc/Sumner/R_Code/utils_HPC.R")
+source("~/hpc/Sumner/R_Code/fig5_utils_HPC.R")
 
 # capture session info, versions, etc.
 write_experimental_configs()

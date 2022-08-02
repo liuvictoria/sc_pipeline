@@ -2,7 +2,7 @@
 # than the analysis from standard_viz
 # none of this code is particularly reusable, except for its specific use case
 ################# LOAD UTILS ##############
-source("~/hpc/Sumner/R_Code/utils_HPC.R")
+source("~/hpc/Sumner/R_Code/fig5_utils_HPC.R")
 
 # capture session info, versions, etc.
 write_experimental_configs(code_file = "panT_aggregation")
