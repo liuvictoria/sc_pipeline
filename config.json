@@ -1,6 +1,6 @@
 {
     "FILES": [
-      "MYSC70", "MYSC96", "MYSC98"
+      "MYSC70", "MYSC96", "MYSC98","MYSC85”
     ],
     "count_matrices_dir": "sample_feature_bc_matrix",
     "ObjName": "GEX",
@@ -59,6 +59,7 @@
     "mito_ratio": 0.15,
     "nFeature_ADT": 40,
     "FONT_FAMILY": "Helvetica",
-    "Directory": "~/Documents/victoria_liu/matching_patients",
-    "NourpalDirectory": "~/Documents/victoria_liu/Nourpal"
+    "Directory": "/projects/compsci/USERS/alizae/GBM/matching_patients/",
+    "NourpalDirectory": "/projects/compsci/USERS/alizae/GBM/Nourpal"
 }
+    

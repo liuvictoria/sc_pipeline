@@ -1,5 +1,6 @@
+start.time <- Sys.time()
 ################# LOAD UTILS + SEURATOBJ  ##############
-source("~/Documents/victoria_liu/matching_patients/R_Code/utils.R")
+source("/projects/compsci/USERS/alizae/GBM/matching_patients/R_Code/sc_pipeline/utils.R")
 
 # capture session info, versions, etc.
 write_experimental_configs(code_file = "standard_viz")
@@ -119,10 +120,10 @@ if (analyses$viz_clustering == "RNA") {
 }
 
 ############### CLUSTER / SAMPLE HEATMAP ##################
-# RNA only
-if (analyses$viz_clustering != "ADT") {
-  heatmap_wrapper(SeuratObj, markersRNA, "RNA")
-} 
+# # RNA only
+# if (analyses$viz_clustering != "ADT") {
+#   heatmap_wrapper(SeuratObj, markersRNA, "RNA")
+# } 
 
 
 
@@ -252,12 +253,12 @@ dev.off()
 
 
 ################# (CUSTOM) CELL POPULATION: CLUSTIFYR ###################
-# refSeuratObj <- readRDS(
-#   paste0(
-#     RobjDir,
-#     "GBMAtlas/Allhuman-11-3-21.rds"
-#   )
-# )
+refSeuratObj <- readRDS(
+  paste0(
+    RobjDir,
+    "GBMAtlas/Allhuman-11-3-21.rds"
+  )
+)
 
 # gam_git_gib <- list(
 #   Myeloid = "GAM",
@@ -284,14 +285,14 @@ dev.off()
 # )
 
 
-# seurat_ref_matrix <- seurat_ref(
-#   seurat_object = refSeuratObj,
-#   cluster_col = "Assignment"
-# )
+seurat_ref_matrix <- seurat_ref(
+  seurat_object = refSeuratObj,
+  cluster_col = "Assignment"
+)
 
 REF_MATRICES <- list(
   cbmc_ref
-  # seurat_ref_matrix
+   #seurat_ref_matrix
 )
 REF_MATRICES_NAMES <- list(
   "cbmc"
@@ -719,7 +720,7 @@ for (cluster_name in names(Clusterspecificgenes)) {
     )
     
     if (length(gene) == 1) {
-      print(gene)
+      #print(gene)
       gene <- gene[[1]]
       F1 <- plot_featureplot (
         seurat_object = SeuratObj,
@@ -1305,4 +1306,15 @@ saveRDS(
     "_res", RESOLUTION, ".rds"
     )
 )
-temp <- SeuratObj
+#temp <- SeuratObj
+
+
+
+
+
+
+end.time <- Sys.time()
+time.taken <- end.time - start.time
+print(time.taken)
+
+write.csv("",file=paste0(OutputDirectory, "/Configs/","Runtime_",time.taken, "mins.txt"))

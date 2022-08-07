@@ -1,5 +1,6 @@
+start.time <- Sys.time()
 ################# LOAD UTILS + SEURATOBJ ##############
-source("~/Documents/victoria_liu/matching_patients/R_Code/utils.R")
+source("/projects/compsci/USERS/alizae/GBM/matching_patients/R_Code/sc_pipeline/utils.R")
 
 # capture session info, versions, etc.
 write_experimental_configs(
@@ -27,7 +28,14 @@ SeuratObj <- readRDS(
   RDS_filename
 )
 
-SeuratObj$GEX_Assignment <- temp$Assignment
+
+temp=readRDS(paste0(
+  RobjDirectory, "GEX", Subset, 
+  "_res0.4.rds"))
+  
+  
+  
+SeuratObj$GEX_Assignment <- temp$Assignment# ?????
 
 ######## QC PLOTS ########
 
@@ -135,3 +143,8 @@ saveRDS(
     "_resAll.rds"
   )
 )
+
+
+end.time <- Sys.time()
+time.taken <- end.time - start.time
+print( time.taken)

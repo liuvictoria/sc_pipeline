@@ -1,5 +1,6 @@
+start.time <- Sys.time()
 ################# LOAD UTILS  ##############
-source("~/Documents/victoria_liu/matching_patients/R_Code/utils.R")
+source("/projects/compsci/USERS/alizae/GBM/matching_patients/R_Code/sc_pipeline/utils.R")
 
 # capture session info, versions, etc.
 write_experimental_configs(
@@ -354,3 +355,8 @@ saveRDS(
     "_resAll.rds"
     )
 )
+
+end.time <- Sys.time()
+time.taken <- end.time - start.time
+print( time.taken)
+

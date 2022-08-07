@@ -101,11 +101,11 @@ MyPackages <- c(
   "dplyr", "ggplot2", "ggpubr", "gridExtra", "viridis", "egg",
   "grid", "lattice", "gtools", "Biobase", "RColorBrewer", "tibble",
   "Seurat", "cowplot", "patchwork", "stringr", "ComplexHeatmap", 
-  "SingleCellExperiment", "ggmin", "Nourpal", "Cairo",
+  "SingleCellExperiment", "ggmin", "Cairo",#, "Nourpal"
   "harmony", "magick", "viridis", "limma", 
   "glmGamPoi", "rjson", "here", "SeuratDisk",
   "gplots", "clustifyr", "fgsea", "purrr", "clustree",
-  "SingleR", "celldex", "ProjecTILs", "biomaRt", "data.table",
+  "SingleR", "celldex", "biomaRt", "data.table",#, "ProjecTILs"
   "umap", "pheatmap", "scDblFinder", "miQC", "SeuratWrappers",
   "PerformanceAnalytics", "corrplot", "GEOquery",
   "slingshot", "ggbeeswarm", "monocle3", "extrafont",
@@ -119,10 +119,15 @@ library(easypackages)
 packages(MyPackages)
 loadfonts()
 
+
 # get experiment parameters
-config <- fromJSON(file = here("config.json"))
-master <- fromJSON(file = here("master.json"))
-analyses <- fromJSON(file = here("analysis.json"))
+# config <- fromJSON(file = here("config.json"))
+# master <- fromJSON(file = here("master.json"))
+# analyses <- fromJSON(file = here("analysis.json"))
+
+config <- fromJSON(file = here("/projects/compsci/USERS/alizae/GBM/matching_patients/R_Code/sc_pipeline/config.json"))
+master <- fromJSON(file = here("/projects/compsci/USERS/alizae/GBM/matching_patients/R_Code/sc_pipeline/master.json"))
+analyses <- fromJSON(file = here("/projects/compsci/USERS/alizae/GBM/matching_patients/R_Code/sc_pipeline/analysis.json"))
 
 # Nour's palette. Install and load
 NourpalDirectory <- config$NourpalDirectory
@@ -176,7 +181,7 @@ write_experimental_configs <- function(suffix = "", code_file) {
     unlink(config_params_filename)
   }
   file.copy(
-    from = here("config.json"), to = config_params_filename
+    from = here("matching_patients","R_Code","sc_pipeline","config.json"), to = config_params_filename
   )
   
   
@@ -187,7 +192,7 @@ write_experimental_configs <- function(suffix = "", code_file) {
     unlink(analysis_params_filename)
   }
   file.copy(
-    from = here("analysis.json"), to = analysis_params_filename
+    from = here("matching_patients","R_Code","sc_pipeline","analysis.json"), to = analysis_params_filename
   )
   
   
@@ -198,7 +203,7 @@ write_experimental_configs <- function(suffix = "", code_file) {
     unlink(code_filename)
   }
   file.copy(
-    from = here(paste0(code_file, ".R")), to = code_filename
+    from = here("matching_patients","R_Code","sc_pipeline",paste0(code_file, ".R")), to = code_filename
   )
   
   utils_filename <- paste0(
@@ -208,7 +213,7 @@ write_experimental_configs <- function(suffix = "", code_file) {
     unlink(utils_filename)
   }
   file.copy(
-    from = here("utils.R"), to = utils_filename
+    from = here("matching_patients","R_Code","sc_pipeline","utils.R"), to = utils_filename
   )
 }
 
@@ -239,9 +244,9 @@ OutputDirectory <- paste0(
   OutDirectory, "/", ObjName, "Res", config$RESOLUTION, "/"
   )
 # open folder to ensure it's correct
-utils::browseURL(
-  paste0("Output/", Subset, "/", ObjName, "Res", config$RESOLUTION, "/")
-  )
+#utils::browseURL(
+#  paste0("Output/", Subset, "/", ObjName, "Res", config$RESOLUTION, "/")
+#  )
 if (! dir.exists(OutputDirectory)) dir.create(OutputDirectory)
 ConfigDirectory <- paste0(OutputDirectory, "/Configs/")
 if (! dir.exists(ConfigDirectory)) dir.create(ConfigDirectory)
