@@ -1,4 +1,3 @@
-start.time <- Sys.time()
 ################# LOAD UTILS + SEURATOBJ ##############
 source("/projects/compsci/USERS/alizae/GBM/matching_patients/R_Code/sc_pipeline/utils.R")
 
@@ -24,18 +23,20 @@ if (! file.exists(RDS_filename)) {
 } else {
   print(paste0("reading Seurat obj: ", RDS_filename))
 }
+
 SeuratObj <- readRDS(
   RDS_filename
 )
 
 
 temp=readRDS(paste0(
-  RobjDirectory, "GEX", Subset, 
-  "_res0.4.rds"))
-  
-  
-  
-SeuratObj$GEX_Assignment <- temp$Assignment# ?????
+   RobjDirectory, "GEX", Subset,
+   "_res0.4.rds"))
+
+# need to manually load temp object
+# temp object is basically RDS_filename except res that has been visualized
+
+SeuratObj$GEX_Assignment <- temp$Assignment#????
 
 ######## QC PLOTS ########
 
@@ -89,17 +90,7 @@ SeuratObj <- ADT_integrate(SeuratObj)
 
 
 
-######## WNN LOUVAIN CLUSTERING ########
-# for WNN, we need to reun louvain before umap
-# WNN
-for (resolution in config$RESOLUTIONS) {
-  SeuratObj <- WNN_louvain(SeuratObj, resolution = resolution)
-}
-
-
-
-
-######## RUN UMAP ########
+######## ADT RUN UMAP ########
 # ADT
 SeuratObj <- RunUMAP(
   SeuratObj, 
@@ -108,7 +99,20 @@ SeuratObj <- RunUMAP(
   reduction.name = "umapADT",
   reduction.key = "umapADT_"
 )
+######## LOUVAIN CLUSTERING ########
+# ADT
+for (resolution in config$RESOLUTIONS) {
+  SeuratObj <- ADT_louvain(
+    SeuratObj, resolution = resolution
+  )
+}
+# for WNN, we need to run louvain before umap
+# WNN
+for (resolution in config$RESOLUTIONS) {
+  SeuratObj <- WNN_louvain(SeuratObj, resolution = resolution)
+}
 
+######## WNN RUN UMAP ########
 
 # WNN
 SeuratObj <- RunUMAP(
@@ -117,14 +121,6 @@ SeuratObj <- RunUMAP(
   reduction.name = "umapWNN",
   reduction.key = "UMAPWNN_"
 )
-
-######## ADT LOUVAIN CLUSTERING #########
-# ADT
-for (resolution in config$RESOLUTIONS) {
-  SeuratObj <- ADT_louvain(
-    SeuratObj, resolution = resolution
-    )
-}
 
 # make sure there are no factors
 SeuratObj@meta.data[, ] <- lapply(
@@ -135,6 +131,20 @@ SeuratObj@meta.data[, ] <- lapply(
 # no default resolution!
 SeuratObj$seurat_clusters <- NULL
 
+################ SAMPLE VISUALIZATION #############
+U0 <- plot_umap(
+  seurat_object = SeuratObj,
+  group_by = paste0("Assignment"),
+  reduction = paste0("umapADT"),
+  title = "Clusters", xlab = "UMAP1", ylab = "UMAP2",
+  legend_position = "bottom",
+  label_size = 5,
+  ncol_guide = 5,
+  color_reverse = TRUE, label_clusters = TRUE,
+  shuffle = TRUE
+)
+U0
+
 ############## SAVE SEURAT AND SESSION INFO, LOOSE ENDS ################
 saveRDS(
   SeuratObj, 
@@ -143,8 +153,3 @@ saveRDS(
     "_resAll.rds"
   )
 )
-
-
-end.time <- Sys.time()
-time.taken <- end.time - start.time
-print( time.taken)

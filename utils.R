@@ -972,7 +972,7 @@ clustifyr_wrapper <- function(SeuratObj, REF_MATRIX, clustifyr_colname) {
   # plot heatmap
   pdf(paste0(
     heatDirectory, "heatmap", ObjName, Subset,
-    "_res", RESOLUTION, "_cellIdentities_",
+    "_res", RESOLUTION, clustifyr_colname, "_cellIdentities_",
     analyses$viz_clustering, "Cluster.pdf"
   ), width = 7, height = 6
   )
@@ -1138,7 +1138,8 @@ plot_umap <- function(
   color_reverse = FALSE,
   title_font_size = 20, x_font_size = 20, y_font_size = 20, 
   pt_size = 0.6, split_by = NULL, ncol_dimplot = 1, ncol_guide = 1,
-  label_clusters = FALSE, repel_labels = FALSE, label_size = 4,
+  label_clusters = FALSE, repel_labels = FALSE, 
+  label_size = 10, label_box = FALSE,
   shuffle = F, order = NULL
 ) {
   color_by <- group_by
@@ -1155,7 +1156,8 @@ plot_umap <- function(
     seurat_object, reduction = reduction, group.by = group_by,
     cols = manual_colors,
     pt.size = pt_size, split.by = split_by, ncol = ncol_dimplot,
-    label = label_clusters, repel = repel_labels, label.size = label_size,
+    label = label_clusters, repel = repel_labels, 
+    label.size = label_size, label.box = label_box,
     shuffle = shuffle, order = order
   ) +
     ggmin::theme_min() +
@@ -1952,28 +1954,11 @@ WNN_louvain <- function(
   algorithm = 3, verbose = FALSE
 ) {
   
-  # figure out if we're doing umap or pca/harmony
-  if (analyses$GEX_louvain_method == "umap") {
-    GEX_reduction = "umapRNA"
-    GEX_reduction_dims = analyses$umapRNA_dims
-  } else if (analyses$GEX_louvain_method == "harmony") { 
-    GEX_reduction = "harmonyRNA"
-    GEX_reduction_dims = analyses$harmonyRNA_dims
-  }
-  
-  if (analyses$ADT_louvain_method == "umap") {
-    ADT_reduction = "umapADT"
-    ADT_reduction_dims = analyses$umapADT_dims
-  } else if (analyses$ADT_louvain_method == "pca") {
-    ADT_reduction = "pcaADT"
-    ADT_reduction_dims = analyses$pcaADT_dims
-  }
-  
   # define reduction list and reduction dim list for WNN
-  reduction_list <- list(GEX_reduction, ADT_reduction)
+  reduction_list <- list("harmonyRNA", "pcaADT")
   reduction_dim_list <- list(
-    1 : GEX_reduction_dims,
-    1 : ADT_reduction_dims
+    1 : analyses$harmonyRNA_dims,
+    1 : analyses$pcaADT_dims
   )
   
   print(paste0("Louvain for res", resolution))

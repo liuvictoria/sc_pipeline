@@ -1,0 +1,57 @@
+{
+	"GEX_louvain_method": "harmony",
+	"ADT_louvain_method": "pca",
+
+	"pcaADT_dims": 11,
+	"harmonyRNA_dims": 11,
+	"umapRNA_dims": 2,
+	"umapADT_dims": 2,
+
+	"viz_clustering": "RNA",
+
+	"which_assignment": "Assignment",
+	"clustifyr_assay": "RNApreSCT",
+	"SingleR_assay": "RNApreSCT",
+
+	"projecTILs_assay": "RNApreSCT",
+	"projecTILs_ref": "TIL",
+
+	"cluster_prefix": "TC",
+	"cluster_to_assignment": {
+		"01": "CD8 Effector Memory",
+		"02": "CD8 Effector Memory",
+		"03": "CD8 Effector Memory",
+		"04": "Naive-like",
+		"05": "CD4 Memory",
+		"06": "Naive-like",
+		"07": "Tfh",
+		"08": "CD8 NK",
+		"09": "Treg",
+		"10": "Th1",
+		"11": "CD8 Exhausted",
+		"12": "CD8 Exhausted",
+		"13": "ISG+",
+		"14": "Treg",
+		"15": "Dividing"
+	},
+
+	"hue_palette": "chromatose",
+	"chromatose_subtype_by": ["ndGBM", "rGBM"],
+
+	"GEO": "GSE156728",
+
+	"denovo": false,
+	"denovo_lineage": "T",
+	"denovo_clusters_remove":[
+	],
+	"denovo_superset": "TPatient",
+	"denovo_superset_resolution": 0.3,
+	"denovo_subset_cols": ["SingleR_Novershtern", "Group"],
+	"denovo_subset": [
+		["CD4+ T cells"],
+		["tumor"]
+	],
+	"denovo_run_harmony": true,
+
+	"correlation_T_resolution": 0.2
+}

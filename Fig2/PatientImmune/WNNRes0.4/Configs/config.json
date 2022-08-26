@@ -1,0 +1,64 @@
+{
+    "FILES": [
+      "MYSC70", "MYSC71", "MYSC95", "MYSC96", "MYSC97", "MYSC98"
+    ],
+    "count_matrices_dir": "sample_feature_bc_matrix",
+    "ObjName": "WNN",
+    "Subset": "PatientImmune",
+    "pca_features": "variable",
+    "pca_variable_features": 2000,
+    "USE_ADT": true,
+    "SCT": true,
+
+    "batch_norm_by": "Sample",
+    "RESOLUTIONS": [
+        0.05,
+        0.1,
+        0.15,
+        0.2,
+        0.3,
+        0.4
+    ],
+    "RESOLUTION": 0.4,
+
+    "aggr_cells": true,
+    "aggr_FILES": [
+      "PatientPBMC",
+      "AllTumor"
+    ],
+    "aggr_resolutions": [
+      0.4, 0.1
+    ],
+    "aggr_category_col": "Assignment",
+    "aggr_categories": [
+        "GAM",
+        "GIT",
+        "GIB",
+        "B",
+        "CD14+ Mono",
+        "CD16+ Mono",
+        "CD4 T",
+        "CD8 Effector Memory",
+        "CD8 Naive",
+        "DC",
+        "NK",
+        "pDCs"
+    ],
+
+    "preprocess_existing_atlas": false,
+    "existing_atlas_name": "GBMAtlas/TCellClusters-11-3-21 patients renamed.rds",
+    "existing_atlas_split_by": "Sample",
+    "existing_atlas_use_cluster": [
+      "rGBM-01", "ndGBM-01", "ndGBM-11", "ndGBM-02", "rGBM-02", "rGBM-03",
+      "rGBM-04", "ndGBM-03", "rGBM-05", "ndGBM-04",
+      "ndGBM-05", "ndGBM-06", "ndGBM-07", "ndGBM-08", "ndGBM-09"
+    ],
+
+    "nFeature_RNA": 200,
+    "ribo_ratio": 0.4,
+    "mito_ratio": 0.15,
+    "nFeature_ADT": 40,
+    "FONT_FAMILY": "Helvetica",
+    "Directory": "~/Documents/victoria_liu/matching_patients",
+    "NourpalDirectory": "~/Documents/victoria_liu/Nourpal"
+}

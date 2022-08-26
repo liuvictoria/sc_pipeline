@@ -187,6 +187,48 @@ SeuratObj@meta.data[, ] <- lapply(
   SeuratObj@meta.data, 
   function(x) type.convert(as.character(x), as.is = TRUE)
 )
+
+
+############### VALIDATION VISUALIZATION ##############
+U0 <- plot_umap(
+  seurat_object = SeuratObj, 
+  group_by = "RNA_snn_res.0.3",
+  reduction = paste0("umapRNA"),
+  title = "Clusters", xlab = "UMAP1", ylab = "UMAP2",
+  legend_position = "bottom",
+  ncol_guide = 5,
+  color_reverse = F, label_clusters = TRUE
+)
+U0
+
+
+U1 <- plot_umap(
+  seurat_object = SeuratObj, 
+  group_by = "SingleR_HPCA",
+  reduction = paste0("umapRNA"),
+  title = "Clusters", xlab = "UMAP1", ylab = "UMAP2",
+  legend_position = "bottom",
+  ncol_guide = 5,
+  color_reverse = F, label_clusters = TRUE
+)
+U1
+
+U2 <- plot_umap(
+  seurat_object = SeuratObj, 
+  group_by = "Sample",
+  reduction = paste0("umapRNA"),
+  title = "Clusters", xlab = "UMAP1", ylab = "UMAP2",
+  legend_position = "bottom",
+  ncol_guide = 5,
+  color_reverse = F, label_clusters = TRUE,
+  color_scheme = analyses$hue_palette,
+  subtype_by = analyses$chromatose_subtype_by
+)
+U2
+
+
+
+
 ############## SAVE SEURAT ################
 if (ObjName == "WNN") {
   ObjName <- "ADT"
@@ -200,6 +242,7 @@ saveRDS(
     )
 )
 
+
 # need to save this so we can load smoothly during standard_viz
 if (ObjName != "GEX") {
   saveRDS(
@@ -210,4 +253,3 @@ if (ObjName != "GEX") {
     )
   )
 }
-

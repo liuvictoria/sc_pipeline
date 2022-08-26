@@ -32,7 +32,7 @@ remotes::install_github('satijalab/seurat-wrappers')
 install.packages("magick")
 install.packages("ggpubr")
 
-
+remotes::install_github("carmonalab/ProjecTILs")# Entered (None)
 
 source("/projects/compsci/USERS/alizae/GBM/matching_patients/R_Code/sc_pipeline/utils.R")#ggmin and umap were installed from here
 

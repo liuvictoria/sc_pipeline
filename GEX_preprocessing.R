@@ -303,7 +303,7 @@ E1
 dev.off()
 
 
-######## RUN UMAP (GEX) ########
+########### RUN UMAP (GEX) ########
 SeuratObj <- RunUMAP(
   SeuratObj,
   reduction = "harmonyRNA",
@@ -313,7 +313,7 @@ SeuratObj <- RunUMAP(
 )
 
 
-######## LOUVAIN CLUSTERING (GEX) ########
+########### LOUVAIN CLUSTERING (GEX) ########
 for (resolution in config$RESOLUTIONS) {
   SeuratObj <- GEX_louvain(
     SeuratObj, resolution = resolution
@@ -334,7 +334,7 @@ SeuratObj$seurat_clusters <- NULL
 ############### VALIDATION VISUALIZATION ##############
 U1 <- plot_umap(
   seurat_object = SeuratObj, 
-  group_by = "RNA_snn_res.0.1",
+  group_by = "RNA_snn_res.0.4",
   reduction = paste0("umapRNA"),
   title = "Clusters", xlab = "UMAP1", ylab = "UMAP2",
   legend_position = "bottom",

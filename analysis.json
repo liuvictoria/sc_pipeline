@@ -1,9 +1,7 @@
-{
-	"GEX_louvain_method": "umap",
-	"ADT_louvain_method": "umap",
-
-	"pcaADT_dims": 12,
-	"harmonyRNA_dims": 12,
+{ "GEX_louvain_method": "harmony",
+	"ADT_louvain_method": "pca",
+	"pcaADT_dims": 11,
+	"harmonyRNA_dims": 11,
 	"umapRNA_dims": 2,
 	"umapADT_dims": 2,
 
@@ -16,30 +14,17 @@
 	"projecTILs_assay": "RNApreSCT",
 	"projecTILs_ref": "TIL",
 
-	"cluster_prefix": "C",
+	"cluster_prefix": "TC",
 	"cluster_to_assignment": {
-		"01": "GAM",
-		"02": "Glioma",
-		"03": "GAM",
-		"04": "Glioma",
-		"05": "Glioma",
-		"06": "Glioma",
-		"07": "GAM",
-		"08": "Oligo",
-		"09": "GAM",
-		"10": "GIT",
-		"11": "Glioma",
-		"12": "Endo",
-		"13": "Glioma"
 	},
 
-	"hue_palette": "nourpal",
+	"hue_palette": "chromatose",
 	"chromatose_subtype_by": ["ndGBM", "rGBM"],
 
 	"GEO": "GSE156728",
 
 	"denovo": false,
-	"denovo_lineage": "A",
+	"denovo_lineage": "T",
 	"denovo_clusters_remove":[
 	],
 	"denovo_superset": "TPatient",
@@ -49,7 +34,7 @@
 		["CD4+ T cells"],
 		["tumor"]
 	],
-	"denovo_run_harmony": true,
+	"denovo_pcaGEX_dims": 11,
+	"denovo_run_harmony": true
 
-	"correlation_T_resolution": 0.2
 }

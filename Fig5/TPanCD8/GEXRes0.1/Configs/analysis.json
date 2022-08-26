@@ -1,0 +1,41 @@
+{
+	"GEX_louvain_method": "umap",
+	"ADT_louvain_method": "pca",
+
+	"pcaADT_dims": 11,
+	"harmonyRNA_dims": 14,
+	"umapRNA_dims": 2,
+	"umapADT_dims": 2,
+
+	"viz_clustering": "RNA",
+
+	"which_assignment": "Assignment",
+	"clustifyr_assay": "RNApreSCT",
+	"SingleR_assay": "RNApreSCT",
+
+	"projecTILs_assay": "RNApreSCT",
+	"projecTILs_ref": "TIL",
+
+	"cluster_prefix": "TC",
+	"cluster_to_assignment": {
+	},
+
+	"hue_palette": "nourpal",
+	"chromatose_subtype_by": ["ndGBM", "rGBM"],
+
+	"GEO": "GSE156728",
+
+	"denovo": false,
+	"denovo_lineage": "T",
+	"denovo_clusters_remove":[
+	],
+	"denovo_superset": "PatientImmune",
+	"denovo_superset_resolution": 0.4,
+	"denovo_subset_cols": ["Assignment"],
+	"denovo_subset": [
+		["CD14+ Mono", "CD16+ Mono", "GAM", "pDCs"]
+	],
+	"denovo_run_harmony": true,
+
+	"correlation_T_resolution": 0.2
+}

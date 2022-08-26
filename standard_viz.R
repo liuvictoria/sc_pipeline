@@ -126,7 +126,6 @@ if (analyses$viz_clustering == "RNA") {
 # } 
 
 
-
 ################# CLUSTER / SAMPLE BARPLOTS ###################
 P2 <- plot_bargraph (
   seurat_object = SeuratObj, aesX = "Sample",
@@ -253,12 +252,12 @@ dev.off()
 
 
 ################# (CUSTOM) CELL POPULATION: CLUSTIFYR ###################
-refSeuratObj <- readRDS(
-  paste0(
-    RobjDir,
-    "GBMAtlas/Allhuman-11-3-21.rds"
-  )
-)
+# refSeuratObj <- readRDS(
+#   paste0(
+#     RobjDir,
+#     "GBMAtlas/MyeloidClusters-11-4-21-patients renamed.rds"
+#   )
+# )
 
 # gam_git_gib <- list(
 #   Myeloid = "GAM",
@@ -284,19 +283,20 @@ refSeuratObj <- readRDS(
 #   )
 # )
 
+# 
+# seurat_ref_matrix <- seurat_ref(
+#   seurat_object = refSeuratObj,
+#   cluster_col = "Assignment"
+# )
 
-seurat_ref_matrix <- seurat_ref(
-  seurat_object = refSeuratObj,
-  cluster_col = "Assignment"
-)
 
 REF_MATRICES <- list(
   cbmc_ref
    #seurat_ref_matrix
 )
 REF_MATRICES_NAMES <- list(
-  "cbmc"
-  # "nour_all"
+  "cbmc",
+  "nour_myeloid"
 )
 stopifnot(length(REF_MATRICES) == length(REF_MATRICES_NAMES))
 
@@ -720,6 +720,7 @@ for (cluster_name in names(Clusterspecificgenes)) {
     )
     
     if (length(gene) == 1) {
+
       #print(gene)
       gene <- gene[[1]]
       F1 <- plot_featureplot (
@@ -1304,17 +1305,12 @@ saveRDS(
   file = paste0(
     RobjDirectory, ObjName, Subset,
     "_res", RESOLUTION, ".rds"
-    )
-)
-#temp <- SeuratObj
-
-
-
-
+    ))
 
 
 end.time <- Sys.time()
 time.taken <- end.time - start.time
 print(time.taken)
 
-write.csv("",file=paste0(OutputDirectory, "/Configs/","Runtime_",time.taken, "mins.txt"))
+write.csv("",file=paste0(OutputDirectory, "/Configs/","Runtime_standard_viz",time.taken, "mins.txt"))
+
